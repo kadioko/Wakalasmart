@@ -1,0 +1,805 @@
+// WakalaSmart — Production Database Schema
+// PostgreSQL via Prisma ORM
+// All financial tables use ledger-based architecture
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  BRANCH_MANAGER
+  CASHIER
+  ACCOUNTANT
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  INACTIVE
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TillType {
+  CASH_BOX
+  FLOAT_ACCOUNT
+}
+
+enum TillStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProviderCode {
+  MPESA
+  AIRTEL
+  TIGO
+  HALOPESA
+}
+
+enum ProviderStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  FLOAT_PURCHASE
+  AIRTIME_SALE
+  BILL_PAYMENT
+  TRANSFER
+  MERCHANT_PAYMENT
+  REVERSAL
+  ADJUSTMENT
+  EXPENSE
+  OWNER_WITHDRAWAL
+  OWNER_INJECTION
+  BANK_DEPOSIT
+  BANK_WITHDRAWAL
+  INTER_BRANCH_TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  VOIDED
+  DISPUTED
+  REQUIRES_APPROVAL
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+  APPROVED
+}
+
+enum ReconciliationStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum AlertType {
+  LOW_CASH
+  LOW_FLOAT
+  LARGE_TRANSACTION
+  DUPLICATE_REFERENCE
+  HIGH_REVERSALS
+  SHIFT_NOT_CLOSED
+  UNRECONCILED_DAY
+  SUSPICIOUS_ACTIVITY
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  UNREAD
+  READ
+  DISMISSED
+}
+
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  AIRTIME
+  TRANSPORT
+  SALARIES
+  BANK_CHARGES
+  REPAIRS
+  SUPPLIES
+  MISCELLANEOUS
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum AuditAction {
+  USER_LOGIN
+  USER_LOGOUT
+  USER_INVITED
+  USER_ROLE_CHANGED
+  USER_DEACTIVATED
+  USER_ACTIVATED
+  TRANSACTION_CREATED
+  TRANSACTION_VOIDED
+  TRANSACTION_APPROVED
+  TRANSACTION_REJECTED
+  RECONCILIATION_CREATED
+  RECONCILIATION_SUBMITTED
+  RECONCILIATION_APPROVED
+  RECONCILIATION_REJECTED
+  OPENING_BALANCE_SET
+  MANUAL_ADJUSTMENT_MADE
+  EXPENSE_CREATED
+  EXPENSE_DELETED
+  BRANCH_CREATED
+  BRANCH_UPDATED
+  TILL_CREATED
+  TILL_UPDATED
+  PROVIDER_UPDATED
+  SETTINGS_CHANGED
+  SHIFT_OPENED
+  SHIFT_CLOSED
+  ORGANIZATION_SUSPENDED
+  ORGANIZATION_ACTIVATED
+}
+
+// ============================================================
+// CORE ENTITIES
+// ============================================================
+
+model Organization {
+  id            String             @id @default(cuid())
+  name          String
+  slug          String             @unique
+  status        OrganizationStatus @default(TRIAL)
+  tin           String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  country       String             @default("Tanzania")
+  currency      String             @default("TZS")
+  timezone      String             @default("Africa/Dar_es_Salaam")
+  logoUrl       String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  users           User[]
+  branches        Branch[]
+  providers       Provider[]
+  tills           Till[]
+  transactions    Transaction[]
+  shifts          Shift[]
+  reconciliations Reconciliation[]
+  expenses        Expense[]
+  alerts          Alert[]
+  alertSettings   AlertSettings[]
+  auditLogs       AuditLog[]
+  invitations     Invitation[]
+  settings        OrganizationSettings?
+  cashLedger      CashLedgerEntry[]
+  floatLedger     FloatLedgerEntry[]
+  dailySummaries  DailySummary[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+model OrganizationSettings {
+  id                             String   @id @default(cuid())
+  organizationId                 String   @unique
+  shiftsMandatory                Boolean  @default(true)
+  requireApprovalForReversals    Boolean  @default(true)
+  requireApprovalForAdjustments  Boolean  @default(true)
+  duplicateReferenceMode         String   @default("WARN")
+  lowCashThreshold               Decimal  @default(100000) @db.Decimal(18, 2)
+  largeTxThreshold               Decimal  @default(1000000) @db.Decimal(18, 2)
+  backDatingAllowed              Boolean  @default(false)
+  backDatingMaxDays              Int      @default(1)
+  roleSeparationEnabled          Boolean  @default(true)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
+}
+
+model Branch {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  code           String?
+  location       String?
+  phone          String?
+  managerId      String?
+  status         BranchStatus @default(ACTIVE)
+  openingTime    String?
+  closingTime    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tills           Till[]
+  shifts          Shift[]
+  transactions    Transaction[]
+  reconciliations Reconciliation[]
+  expenses        Expense[]
+  alerts          Alert[]
+  userBranches    UserBranch[]
+  cashLedger      CashLedgerEntry[]
+  floatLedger     FloatLedgerEntry[]
+  dailySummaries  DailySummary[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@map("branches")
+}
+
+// ============================================================
+// USERS & AUTH
+// ============================================================
+
+model User {
+  id             String    @id @default(cuid())
+  organizationId String?
+  email          String    @unique
+  emailVerified  Boolean   @default(false)
+  name           String
+  phone          String?
+  role           UserRole  @default(CASHIER)
+  isActive       Boolean   @default(true)
+  avatarUrl      String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization             Organization?    @relation(fields: [organizationId], references: [id])
+  userBranches             UserBranch[]
+  sessions                 Session[]
+  accounts                 Account[]
+  verifications            Verification[]
+  transactionsCreated      Transaction[]    @relation("CreatedByUser")
+  transactionsApproved     Transaction[]    @relation("ApprovedByUser")
+  shiftsOpened             Shift[]          @relation("ShiftOpenedBy")
+  shiftsClosed             Shift[]          @relation("ShiftClosedBy")
+  shiftsApproved           Shift[]          @relation("ShiftApprovedBy")
+  reconciliationsSubmitted Reconciliation[] @relation("SubmittedByUser")
+  reconciliationsApproved  Reconciliation[] @relation("ApprovedByUser")
+  expenses                 Expense[]
+  auditLogs                AuditLog[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([organizationId, role])
+  @@map("users")
+}
+
+model UserBranch {
+  id        String   @id @default(cuid())
+  userId    String
+  branchId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@index([userId])
+  @@index([branchId])
+  @@map("user_branches")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User? @relation(fields: [identifier], references: [email])
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  organizationId String
+  email          String
+  role           UserRole
+  branchIds      String[]         @default([])
+  token          String           @unique @default(cuid())
+  status         InvitationStatus @default(PENDING)
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([token])
+  @@index([email])
+  @@map("invitations")
+}
+
+// ============================================================
+// PROVIDERS & TILLS
+// ============================================================
+
+model Provider {
+  id                String         @id @default(cuid())
+  organizationId    String
+  name              String
+  code              ProviderCode
+  status            ProviderStatus @default(ACTIVE)
+  commissionRate    Decimal        @default(0) @db.Decimal(8, 4)
+  commissionNotes   String?
+  lowFloatThreshold Decimal        @default(100000) @db.Decimal(18, 2)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tills        Till[]
+  transactions Transaction[]
+  floatLedger  FloatLedgerEntry[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("providers")
+}
+
+model Till {
+  id             String     @id @default(cuid())
+  organizationId String
+  branchId       String
+  providerId     String?
+  name           String
+  type           TillType
+  status         TillStatus @default(ACTIVE)
+  description    String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch             @relation(fields: [branchId], references: [id])
+  provider     Provider?          @relation(fields: [providerId], references: [id])
+  transactions Transaction[]
+  cashLedger   CashLedgerEntry[]
+  floatLedger  FloatLedgerEntry[]
+  shiftTills   ShiftTill[]
+
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("tills")
+}
+
+// ============================================================
+// SHIFTS
+// ============================================================
+
+model Shift {
+  id             String      @id @default(cuid())
+  organizationId String
+  branchId       String
+  openedById     String
+  closedById     String?
+  approvedById   String?
+  status         ShiftStatus @default(OPEN)
+  openedAt       DateTime    @default(now())
+  closedAt       DateTime?
+  approvedAt     DateTime?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  openedBy       User            @relation("ShiftOpenedBy", fields: [openedById], references: [id])
+  closedBy       User?           @relation("ShiftClosedBy", fields: [closedById], references: [id])
+  approvedBy     User?           @relation("ShiftApprovedBy", fields: [approvedById], references: [id])
+  transactions   Transaction[]
+  shiftTills     ShiftTill[]
+  reconciliation Reconciliation?
+
+  @@index([organizationId])
+  @@index([branchId])
+  @@index([organizationId, status])
+  @@index([openedById])
+  @@map("shifts")
+}
+
+model ShiftTill {
+  id             String   @id @default(cuid())
+  shiftId        String
+  tillId         String
+  openingBalance Decimal  @db.Decimal(18, 2)
+  closingBalance Decimal? @db.Decimal(18, 2)
+  countedBalance Decimal? @db.Decimal(18, 2)
+  variance       Decimal? @db.Decimal(18, 2)
+  varianceNotes  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  till  Till  @relation(fields: [tillId], references: [id])
+
+  @@unique([shiftId, tillId])
+  @@index([shiftId])
+  @@map("shift_tills")
+}
+
+// ============================================================
+// TRANSACTIONS
+// ============================================================
+
+model Transaction {
+  id             String            @id @default(cuid())
+  organizationId String
+  branchId       String
+  tillId         String
+  providerId     String?
+  shiftId        String?
+  type           TransactionType
+  status         TransactionStatus @default(COMPLETED)
+  amount         Decimal           @db.Decimal(18, 2)
+  fee            Decimal           @default(0) @db.Decimal(18, 2)
+  commission     Decimal           @default(0) @db.Decimal(18, 2)
+  reference      String?
+  externalRef    String?
+  customerPhone  String?
+  notes          String?
+  createdById    String
+  approvedById   String?
+  relatedTxId    String?
+  transactedAt   DateTime          @default(now())
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch           @relation(fields: [branchId], references: [id])
+  till         Till             @relation(fields: [tillId], references: [id])
+  provider     Provider?        @relation(fields: [providerId], references: [id])
+  shift        Shift?           @relation(fields: [shiftId], references: [id])
+  createdBy    User             @relation("CreatedByUser", fields: [createdById], references: [id])
+  approvedBy   User?            @relation("ApprovedByUser", fields: [approvedById], references: [id])
+  cashEntries  CashLedgerEntry[]
+  floatEntries FloatLedgerEntry[]
+
+  @@index([organizationId])
+  @@index([branchId])
+  @@index([organizationId, type])
+  @@index([organizationId, transactedAt])
+  @@index([organizationId, reference])
+  @@index([shiftId])
+  @@index([createdById])
+  @@map("transactions")
+}
+
+// ============================================================
+// LEDGERS
+// ============================================================
+
+model CashLedgerEntry {
+  id             String          @id @default(cuid())
+  organizationId String
+  branchId       String
+  tillId         String
+  transactionId  String?
+  entryType      LedgerEntryType
+  amount         Decimal         @db.Decimal(18, 2)
+  balanceAfter   Decimal         @db.Decimal(18, 2)
+  description    String?
+  entryDate      DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  till         Till         @relation(fields: [tillId], references: [id])
+  transaction  Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([organizationId])
+  @@index([branchId, entryDate])
+  @@index([tillId, entryDate])
+  @@map("cash_ledger_entries")
+}
+
+model FloatLedgerEntry {
+  id             String          @id @default(cuid())
+  organizationId String
+  branchId       String
+  tillId         String
+  providerId     String
+  transactionId  String?
+  entryType      LedgerEntryType
+  amount         Decimal         @db.Decimal(18, 2)
+  balanceAfter   Decimal         @db.Decimal(18, 2)
+  description    String?
+  entryDate      DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  till         Till         @relation(fields: [tillId], references: [id])
+  provider     Provider     @relation(fields: [providerId], references: [id])
+  transaction  Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([organizationId])
+  @@index([branchId, entryDate])
+  @@index([tillId, providerId, entryDate])
+  @@map("float_ledger_entries")
+}
+
+model DailySummary {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  branchId            String
+  date                DateTime @db.Date
+  totalDeposits       Decimal  @default(0) @db.Decimal(18, 2)
+  totalWithdrawals    Decimal  @default(0) @db.Decimal(18, 2)
+  totalFloatPurchased Decimal  @default(0) @db.Decimal(18, 2)
+  totalExpenses       Decimal  @default(0) @db.Decimal(18, 2)
+  totalCommissions    Decimal  @default(0) @db.Decimal(18, 2)
+  totalFees           Decimal  @default(0) @db.Decimal(18, 2)
+  txCount             Int      @default(0)
+  openingCash         Decimal  @default(0) @db.Decimal(18, 2)
+  closingCash         Decimal  @default(0) @db.Decimal(18, 2)
+  computedAt          DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id])
+
+  @@unique([organizationId, branchId, date])
+  @@index([organizationId, date])
+  @@map("daily_summaries")
+}
+
+// ============================================================
+// RECONCILIATION
+// ============================================================
+
+model Reconciliation {
+  id              String               @id @default(cuid())
+  organizationId  String
+  branchId        String
+  shiftId         String?              @unique
+  date            DateTime             @db.Date
+  status          ReconciliationStatus @default(DRAFT)
+  submittedById   String?
+  approvedById    String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  notes           String?
+  openingCash     Decimal              @db.Decimal(18, 2)
+  expectedCash    Decimal              @db.Decimal(18, 2)
+  actualCash      Decimal              @db.Decimal(18, 2)
+  cashVariance    Decimal              @db.Decimal(18, 2)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch                    @relation(fields: [branchId], references: [id])
+  shift        Shift?                    @relation(fields: [shiftId], references: [id])
+  submittedBy  User?                     @relation("SubmittedByUser", fields: [submittedById], references: [id])
+  approvedBy   User?                     @relation("ApprovedByUser", fields: [approvedById], references: [id])
+  floatItems   ReconciliationFloatItem[]
+
+  @@index([organizationId])
+  @@index([branchId, date])
+  @@index([organizationId, status])
+  @@map("reconciliations")
+}
+
+model ReconciliationFloatItem {
+  id                String   @id @default(cuid())
+  reconciliationId  String
+  providerId        String
+  providerName      String
+  openingFloat      Decimal  @db.Decimal(18, 2)
+  floatPurchased    Decimal  @db.Decimal(18, 2)
+  depositsServed    Decimal  @db.Decimal(18, 2)
+  withdrawalsServed Decimal  @db.Decimal(18, 2)
+  expectedFloat     Decimal  @db.Decimal(18, 2)
+  actualFloat       Decimal  @db.Decimal(18, 2)
+  variance          Decimal  @db.Decimal(18, 2)
+  varianceNotes     String?
+  createdAt         DateTime @default(now())
+
+  reconciliation Reconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+
+  @@index([reconciliationId])
+  @@map("reconciliation_float_items")
+}
+
+// ============================================================
+// EXPENSES
+// ============================================================
+
+model Expense {
+  id             String          @id @default(cuid())
+  organizationId String
+  branchId       String
+  category       ExpenseCategory
+  description    String
+  amount         Decimal         @db.Decimal(18, 2)
+  paidAt         DateTime        @default(now())
+  status         ExpenseStatus   @default(APPROVED)
+  approvedById   String?
+  createdById    String
+  isCash         Boolean         @default(true)
+  receiptUrl     String?
+  notes          String?
+  isDeleted      Boolean         @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  createdBy    User         @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([branchId, paidAt])
+  @@map("expenses")
+}
+
+// ============================================================
+// ALERTS
+// ============================================================
+
+model AlertSettings {
+  id                     String   @id @default(cuid())
+  organizationId         String
+  branchId               String?
+  lowCashEnabled         Boolean  @default(true)
+  lowCashThreshold       Decimal  @default(100000) @db.Decimal(18, 2)
+  lowFloatEnabled        Boolean  @default(true)
+  largeTxEnabled         Boolean  @default(true)
+  largeTxThreshold       Decimal  @default(1000000) @db.Decimal(18, 2)
+  duplicateRefEnabled    Boolean  @default(true)
+  highReversalsEnabled   Boolean  @default(true)
+  highReversalsThreshold Int      @default(5)
+  shiftNotClosedEnabled  Boolean  @default(true)
+  unreconciledDayEnabled Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, branchId])
+  @@map("alert_settings")
+}
+
+model Alert {
+  id             String        @id @default(cuid())
+  organizationId String
+  branchId       String?
+  type           AlertType
+  severity       AlertSeverity
+  status         AlertStatus   @default(UNREAD)
+  title          String
+  message        String
+  metadata       Json?
+  triggeredAt    DateTime      @default(now())
+  readAt         DateTime?
+  dismissedAt    DateTime?
+  createdAt      DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch?      @relation(fields: [branchId], references: [id])
+
+  @@index([organizationId, status])
+  @@index([organizationId, triggeredAt])
+  @@map("alerts")
+}
+
+// ============================================================
+// AUDIT LOGS (Immutable — never update, never delete)
+// ============================================================
+
+model AuditLog {
+  id             String      @id @default(cuid())
+  organizationId String?
+  userId         String?
+  action         AuditAction
+  resourceType   String
+  resourceId     String?
+  description    String
+  before         Json?
+  after          Json?
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json?
+  createdAt      DateTime    @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, action])
+  @@index([organizationId, createdAt])
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
