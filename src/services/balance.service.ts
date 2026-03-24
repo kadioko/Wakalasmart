@@ -81,8 +81,8 @@ export async function getBranchBalances(
   // Get each float till balance
   const floatBalances = await Promise.all(
     floatTills
-      .filter((t) => t.provider)
-      .map(async (till) => {
+      .filter((t: { provider: { name: string; code: ProviderCode; lowFloatThreshold: unknown } | null }) => t.provider)
+      .map(async (till: { id: string; providerId: string | null; provider: { name: string; code: ProviderCode; lowFloatThreshold: unknown } | null }) => {
         const balance = await getTillFloatBalance(
           till.id,
           till.providerId!
@@ -116,7 +116,7 @@ export async function getOrganizationBalances(organizationId: string) {
   });
 
   const balances = await Promise.all(
-    branches.map(async (branch) => ({
+    branches.map(async (branch: { id: string; name: string }) => ({
       branch,
       ...(await getBranchBalances(organizationId, branch.id)),
     }))
@@ -141,8 +141,6 @@ export async function appendCashLedgerEntry(
   },
   tx?: Parameters<Parameters<typeof db.$transaction>[0]>[0]
 ) {
-  const client = tx ?? db;
-
   // Get current balance
   const lastEntry = await (tx
     ? tx.cashLedgerEntry.findFirst
@@ -156,6 +154,10 @@ export async function appendCashLedgerEntry(
     params.entryType === "CREDIT"
       ? currentBalance + params.amount
       : currentBalance - params.amount;
+
+  if (newBalance < 0) {
+    throw new Error("Insufficient cash balance");
+  }
 
   return (tx ? tx.cashLedgerEntry.create : db.cashLedgerEntry.create)({
     data: {
@@ -201,6 +203,10 @@ export async function appendFloatLedgerEntry(
     params.entryType === "CREDIT"
       ? currentBalance + params.amount
       : currentBalance - params.amount;
+
+  if (newBalance < 0) {
+    throw new Error("Insufficient float balance");
+  }
 
   return (tx ? tx.floatLedgerEntry.create : db.floatLedgerEntry.create)({
     data: {

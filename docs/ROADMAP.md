@@ -4,9 +4,13 @@
 
 WakalaSmart is built as a production-grade SaaS platform for Tanzanian mobile money agents (wakalas). This roadmap covers the development phases from MVP to full production deployment.
 
+For the current execution plan and a more detailed assessment of what is still left to build, see [`docs/SPRINT_ROADMAP.md`](./SPRINT_ROADMAP.md). This document remains a higher-level phase roadmap.
+
+Status note: the repository already contains substantial implementation work for the early phases, but the detailed sprint roadmap should be treated as the source of truth for what is still incomplete.
+
 ---
 
-## Phase 1 — Foundation (Weeks 1–2) ✅
+## Phase 1 — Foundation (Weeks 1–2) — foundational assets implemented
 
 **Goal:** Project setup, schema, and core authentication working
 
@@ -29,7 +33,7 @@ WakalaSmart is built as a production-grade SaaS platform for Tanzanian mobile mo
 
 ---
 
-## Phase 2 — Core Backend Services (Weeks 3–4) ✅
+## Phase 2 — Core Backend Services (Weeks 3–4) — largely implemented, still needs hardening
 
 **Goal:** All business logic services complete with ledger architecture
 
@@ -50,7 +54,7 @@ WakalaSmart is built as a production-grade SaaS platform for Tanzanian mobile mo
 
 ---
 
-## Phase 3 — API Layer (Weeks 4–5) ✅
+## Phase 3 — API Layer (Weeks 4–5) — route surface exists, authorization and edge cases still need completion
 
 **Goal:** Full REST API with auth, RBAC, and tenant isolation
 
@@ -76,7 +80,7 @@ WakalaSmart is built as a production-grade SaaS platform for Tanzanian mobile mo
 
 ---
 
-## Phase 4 — Frontend (Weeks 6–8) ✅
+## Phase 4 — Frontend (Weeks 6–8) — screens exist, several workflows are still partial
 
 **Goal:** Full dashboard UI with all CRUD operations
 

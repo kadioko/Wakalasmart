@@ -2,11 +2,14 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { slugify } from "@/lib/utils";
+import { generateBranchCode, slugify } from "@/lib/utils";
 import { z } from "zod";
 
 const schema = z.object({
   organizationName: z.string().min(2).max(100),
+  firstBranchName: z.string().min(2).max(100),
+  businessPhone: z.string().optional().or(z.literal("")),
+  city: z.string().max(100).optional().or(z.literal("")),
 });
 
 export async function POST(req: NextRequest) {
@@ -21,17 +24,83 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (user.organizationId) {
-      return NextResponse.json(
-        { error: "User already has an organization" },
-        { status: 400 }
-      );
-    }
-
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input" }, { status: 422 });
+    }
+
+    const businessPhone = parsed.data.businessPhone || null;
+    const city = parsed.data.city || null;
+
+    if (user.organizationId) {
+      const existingBranchCount = await db.branch.count({
+        where: { organizationId: user.organizationId },
+      });
+
+      if (existingBranchCount > 0) {
+        return NextResponse.json(
+          { error: "User already has an organization" },
+          { status: 400 }
+        );
+      }
+
+      const organization = await db.organization.findUnique({
+        where: { id: user.organizationId },
+      });
+
+      if (!organization) {
+        return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+      }
+
+      const branchCode = generateBranchCode(parsed.data.firstBranchName, 1);
+
+      const result = await db.$transaction(async (tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]) => {
+        const branch = await tx.branch.create({
+          data: {
+            organizationId: organization.id,
+            name: parsed.data.firstBranchName,
+            code: branchCode,
+            phone: businessPhone,
+            location: city,
+          },
+        });
+
+        await tx.userBranch.create({
+          data: {
+            userId: user.id,
+            branchId: branch.id,
+          },
+        });
+
+        await tx.till.create({
+          data: {
+            organizationId: organization.id,
+            branchId: branch.id,
+            name: "Main Cash Box",
+            type: "CASH_BOX",
+          },
+        });
+
+        await tx.alertSettings.create({
+          data: {
+            organizationId: organization.id,
+            branchId: branch.id,
+          },
+        });
+
+        await tx.organization.update({
+          where: { id: organization.id },
+          data: {
+            phone: businessPhone,
+            city,
+          },
+        });
+
+        return { organization, branch };
+      });
+
+      return NextResponse.json({ data: result }, { status: 201 });
     }
 
     const baseSlug = slugify(parsed.data.organizationName);
@@ -42,27 +111,25 @@ export async function POST(req: NextRequest) {
       slug = `${baseSlug}-${attempt}`;
     }
 
-    // Create organization + default settings + first branch + providers
-    const org = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]) => {
       const organization = await tx.organization.create({
         data: {
           name: parsed.data.organizationName,
           slug,
           status: "TRIAL",
+          phone: businessPhone,
+          city,
         },
       });
 
-      // Create default settings
       await tx.organizationSettings.create({
         data: { organizationId: organization.id },
       });
 
-      // Create default alert settings
       await tx.alertSettings.create({
         data: { organizationId: organization.id },
       });
 
-      // Update user to OWNER with this org
       await tx.user.update({
         where: { id: session.user.id },
         data: {
@@ -71,7 +138,41 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Create default providers
+      const branchCode = generateBranchCode(parsed.data.firstBranchName, 1);
+
+      const branch = await tx.branch.create({
+        data: {
+          organizationId: organization.id,
+          name: parsed.data.firstBranchName,
+          code: branchCode,
+          phone: businessPhone,
+          location: city,
+        },
+      });
+
+      await tx.userBranch.create({
+        data: {
+          userId: session.user.id,
+          branchId: branch.id,
+        },
+      });
+
+      await tx.till.create({
+        data: {
+          organizationId: organization.id,
+          branchId: branch.id,
+          name: "Main Cash Box",
+          type: "CASH_BOX",
+        },
+      });
+
+      await tx.alertSettings.create({
+        data: {
+          organizationId: organization.id,
+          branchId: branch.id,
+        },
+      });
+
       const defaultProviders = [
         { name: "M-Pesa", code: "MPESA" as const },
         { name: "Airtel Money", code: "AIRTEL" as const },
@@ -87,10 +188,10 @@ export async function POST(req: NextRequest) {
         })),
       });
 
-      return organization;
+      return { organization, branch };
     });
 
-    return NextResponse.json({ data: org }, { status: 201 });
+    return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {
     console.error("Onboarding error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -1,14 +1,26 @@
-import { NextRequest } from "next/server";
-import { withAuth, ok, err, getPagination, parseBody } from "@/lib/api-helpers";
+import { withAuth, ok, err, getPagination, parseBody, getBranchScope } from "@/lib/api-helpers";
 import { createTransaction, getTransactions } from "@/services/transaction.service";
 import { createTransactionRefinedSchema } from "@/lib/validations/transaction";
 import { TransactionType } from "@prisma/client";
+import type { CreateTransactionInput } from "@/types";
 
 export const GET = withAuth(async (req, ctx) => {
   const url = new URL(req.url);
   const { page, pageSize } = getPagination(req);
 
-  const filters = {
+  const filters: {
+    branchId?: string;
+    type?: TransactionType;
+    status?: string;
+    providerId?: string;
+    createdById?: string;
+    search?: string;
+    startDate?: Date;
+    endDate?: Date;
+    page: number;
+    pageSize: number;
+    branchIds?: string[];
+  } = {
     branchId: url.searchParams.get("branchId") || undefined,
     type: (url.searchParams.get("type") as TransactionType) || undefined,
     status: url.searchParams.get("status") || undefined,
@@ -23,11 +35,20 @@ export const GET = withAuth(async (req, ctx) => {
       : undefined,
     page,
     pageSize,
+    branchIds: undefined as string[] | undefined,
   };
 
-  // Scope cashiers to their branches
-  if (ctx.role === "CASHIER" && !filters.branchId) {
-    // Return only transactions from their branches
+  try {
+    filters.branchId = getBranchScope(ctx, filters.branchId);
+  } catch (error) {
+    if (error instanceof Error) {
+      return err(error.message, 403);
+    }
+    return err("Access denied to this branch", 403);
+  }
+
+  if (ctx.role !== "OWNER" && ctx.role !== "SUPER_ADMIN" && ctx.role !== "ACCOUNTANT" && !filters.branchId) {
+    filters.branchIds = ctx.branchIds;
   }
 
   const result = await getTransactions(ctx.organizationId, filters);
@@ -36,7 +57,7 @@ export const GET = withAuth(async (req, ctx) => {
 
 export const POST = withAuth(
   async (req, ctx) => {
-    let input;
+    let input: CreateTransactionInput;
     try {
       input = await parseBody(req, createTransactionRefinedSchema);
     } catch (e: unknown) {
@@ -52,6 +73,15 @@ export const POST = withAuth(
     // Cashiers can only create in assigned branches
     if (ctx.role === "CASHIER" && !ctx.branchIds.includes(input.branchId)) {
       return err("You are not assigned to this branch", 403);
+    }
+
+    try {
+      input.branchId = getBranchScope(ctx, input.branchId) ?? input.branchId;
+    } catch (error) {
+      if (error instanceof Error) {
+        return err(error.message, 403);
+      }
+      return err("Access denied to this branch", 403);
     }
 
     const ipAddress = req.headers.get("x-forwarded-for") || undefined;

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,7 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { getStatusColor, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { Plus, Mail, UserCheck } from "lucide-react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,6 +31,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default function StaffPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+  const [latestInviteUrl, setLatestInviteUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -62,17 +62,18 @@ export default function StaffPage() {
       if (!res.ok) throw new Error((await res.json()).error);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (response: { data?: { acceptUrl?: string } }) => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
       setInviteOpen(false);
       reset();
       setSelectedBranches([]);
+      setLatestInviteUrl(response.data?.acceptUrl || null);
     },
   });
 
   const toggleBranch = (id: string) => {
     const updated = selectedBranches.includes(id)
-      ? selectedBranches.filter((b) => b !== id)
+      ? selectedBranches.filter((b: string) => b !== id)
       : [...selectedBranches, id];
     setSelectedBranches(updated);
     setValue("branchIds", updated);
@@ -96,7 +97,7 @@ export default function StaffPage() {
             <DialogHeader>
               <DialogTitle>Invite Team Member</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit((d) => inviteMutation.mutate(d))} className="space-y-4">
+            <form onSubmit={handleSubmit((d: InviteStaffInput) => inviteMutation.mutate(d))} className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Email Address *</Label>
                 <Input type="email" placeholder="staff@example.com" {...register("email")} />
@@ -104,7 +105,7 @@ export default function StaffPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Role *</Label>
-                <Select onValueChange={(v) => setValue("role", v as InviteStaffInput["role"])}>
+                <Select onValueChange={(v: string) => setValue("role", v as InviteStaffInput["role"])}>
                   <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="BRANCH_MANAGER">Branch Manager</SelectItem>
@@ -143,6 +144,41 @@ export default function StaffPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {latestInviteUrl && (
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <UserCheck className="h-4 w-4 text-green-600" />
+              Invitation created successfully
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Share this link with the invited staff member until email delivery is connected.
+            </p>
+            <div className="rounded-lg border bg-muted/30 p-3 text-xs break-all">
+              {latestInviteUrl}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigator.clipboard.writeText(latestInviteUrl)}
+              >
+                Copy Link
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setLatestInviteUrl(null)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <div className="overflow-x-auto">

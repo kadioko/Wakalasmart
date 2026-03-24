@@ -36,6 +36,75 @@ function getLedgerImpact(type: TransactionType): {
   return impacts[type];
 }
 
+function getOppositeEntryType(entryType: "CREDIT" | "DEBIT"): "CREDIT" | "DEBIT" {
+  return entryType === "CREDIT" ? "DEBIT" : "CREDIT";
+}
+
+async function appendDeferredLedgerEntries(
+  transaction: {
+    id: string;
+    organizationId: string;
+    branchId: string;
+    tillId: string;
+    providerId: string | null;
+    type: TransactionType;
+    amount: Prisma.Decimal | number;
+    reference: string | null;
+    transactedAt: Date;
+  },
+  tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]
+) {
+  const till = await tx.till.findFirst({
+    where: { id: transaction.tillId, organizationId: transaction.organizationId },
+  });
+
+  if (!till) {
+    throw new Error("Till not found");
+  }
+
+  const provider = transaction.providerId
+    ? await tx.provider.findFirst({
+        where: { id: transaction.providerId, organizationId: transaction.organizationId },
+      })
+    : null;
+
+  const impact = getLedgerImpact(transaction.type);
+  const amount = Number(transaction.amount);
+
+  if (impact.cashEffect && till.type === "CASH_BOX") {
+    await appendCashLedgerEntry(
+      {
+        organizationId: transaction.organizationId,
+        branchId: transaction.branchId,
+        tillId: transaction.tillId,
+        transactionId: transaction.id,
+        entryType: impact.cashEffect,
+        amount,
+        description: `${transaction.type} - ${transaction.reference || transaction.id}`,
+        entryDate: transaction.transactedAt,
+      },
+      tx as unknown as Parameters<typeof appendCashLedgerEntry>[1]
+    );
+  }
+
+  if (impact.floatEffect && provider && till.type === "FLOAT_ACCOUNT") {
+    await appendFloatLedgerEntry(
+      {
+        organizationId: transaction.organizationId,
+        branchId: transaction.branchId,
+        tillId: transaction.tillId,
+        providerId: provider.id,
+        transactionId: transaction.id,
+        entryType: impact.floatEffect,
+        amount,
+        description: `${transaction.type} - ${transaction.reference || transaction.id}`,
+        entryDate: transaction.transactedAt,
+      },
+      tx as unknown as Parameters<typeof appendFloatLedgerEntry>[1]
+    );
+  }
+}
+
 export async function createTransaction(
   input: CreateTransactionInput,
   userId: string,
@@ -100,7 +169,7 @@ export async function createTransaction(
         : false;
 
   // 6. Create transaction + ledger entries in a single DB transaction
-  const result = await db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]) => {
     const transaction = await tx.transaction.create({
       data: {
         organizationId,
@@ -196,17 +265,87 @@ export async function voidTransaction(
 ) {
   const transaction = await db.transaction.findFirst({
     where: { id: transactionId, organizationId },
+    include: {
+      cashEntries: true,
+      floatEntries: true,
+    },
   });
 
   if (!transaction) throw new Error("Transaction not found");
   if (transaction.status === "VOIDED") throw new Error("Already voided");
+  if (transaction.type === "REVERSAL") {
+    throw new Error("Reversal transactions cannot be voided");
+  }
 
-  const updated = await db.transaction.update({
-    where: { id: transactionId },
-    data: {
-      status: "VOIDED",
-      notes: `${transaction.notes ? transaction.notes + " | " : ""}VOIDED: ${reason}`,
-    },
+  const result = await db.$transaction(async (tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]) => {
+    const updated = await tx.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: "VOIDED",
+        notes: `${transaction.notes ? transaction.notes + " | " : ""}VOIDED: ${reason}`,
+      },
+    });
+
+    const reversalTransaction = await tx.transaction.create({
+      data: {
+        organizationId: transaction.organizationId,
+        branchId: transaction.branchId,
+        tillId: transaction.tillId,
+        providerId: transaction.providerId,
+        shiftId: transaction.shiftId,
+        type: "REVERSAL",
+        status: "COMPLETED",
+        amount: transaction.amount,
+        fee: transaction.fee,
+        commission: transaction.commission,
+        reference: transaction.reference,
+        externalRef: transaction.externalRef,
+        customerPhone: transaction.customerPhone,
+        notes: `Reversal for ${transaction.id}: ${reason}`,
+        createdById: userId,
+        approvedById: userId,
+        relatedTxId: transaction.id,
+        transactedAt: new Date(),
+      },
+    });
+
+    for (const entry of transaction.cashEntries) {
+      await appendCashLedgerEntry(
+        {
+          organizationId: entry.organizationId,
+          branchId: entry.branchId,
+          tillId: entry.tillId,
+          transactionId: reversalTransaction.id,
+          entryType: getOppositeEntryType(entry.entryType),
+          amount: Number(entry.amount),
+          description: `REVERSAL of ${transaction.id}: ${reason}`,
+          entryDate: new Date(),
+        },
+        tx as unknown as Parameters<typeof appendCashLedgerEntry>[1]
+      );
+    }
+
+    for (const entry of transaction.floatEntries) {
+      await appendFloatLedgerEntry(
+        {
+          organizationId: entry.organizationId,
+          branchId: entry.branchId,
+          tillId: entry.tillId,
+          providerId: entry.providerId,
+          transactionId: reversalTransaction.id,
+          entryType: getOppositeEntryType(entry.entryType),
+          amount: Number(entry.amount),
+          description: `REVERSAL of ${transaction.id}: ${reason}`,
+          entryDate: new Date(),
+        },
+        tx as unknown as Parameters<typeof appendFloatLedgerEntry>[1]
+      );
+    }
+
+    return {
+      ...updated,
+      reversalTransactionId: reversalTransaction.id,
+    };
   });
 
   await createAuditLog({
@@ -217,17 +356,76 @@ export async function voidTransaction(
     resourceId: transactionId,
     description: `Transaction voided. Reason: ${reason}`,
     before: { status: transaction.status },
-    after: { status: "VOIDED" },
+    after: { status: "VOIDED", reversalCreated: true, originalType: transaction.type },
     ipAddress,
   });
 
-  return updated;
+  return result;
+}
+
+export async function approveTransaction(
+  transactionId: string,
+  userId: string,
+  organizationId: string,
+  notes?: string,
+  ipAddress?: string
+) {
+  const [transaction, settings] = await Promise.all([
+    db.transaction.findFirst({
+      where: { id: transactionId, organizationId },
+    }),
+    db.organizationSettings.findUnique({ where: { organizationId } }),
+  ]);
+
+  if (!transaction) {
+    throw new Error("Transaction not found");
+  }
+
+  if (transaction.status !== "REQUIRES_APPROVAL") {
+    throw new Error("Cannot approve transaction in its current status");
+  }
+
+  if (settings?.roleSeparationEnabled && transaction.createdById === userId) {
+    throw new Error("Role separation prevents self-approval");
+  }
+
+  const result = await db.$transaction(async (tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]) => {
+    await appendDeferredLedgerEntries(transaction, tx);
+
+    return tx.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: "COMPLETED",
+        approvedById: userId,
+        notes: notes
+          ? `${transaction.notes ? transaction.notes + " | " : ""}APPROVED: ${notes}`
+          : transaction.notes,
+      },
+    });
+  });
+
+  await createAuditLog({
+    organizationId,
+    userId,
+    action: "TRANSACTION_APPROVED",
+    resourceType: "transaction",
+    resourceId: transactionId,
+    description: `Transaction approved${notes ? `: ${notes}` : ""}`,
+    before: { status: transaction.status },
+    after: { status: result.status, approvedById: userId },
+    ipAddress,
+  });
+
+  checkAndCreateAlerts(organizationId, transaction.branchId).catch(console.error);
+
+  return result;
 }
 
 export async function getTransactions(
   organizationId: string,
   filters: {
     branchId?: string;
+    branchIds?: string[];
     type?: TransactionType;
     status?: string;
     providerId?: string;
@@ -244,7 +442,11 @@ export async function getTransactions(
 
   const where: Prisma.TransactionWhereInput = {
     organizationId,
-    ...(filters.branchId && { branchId: filters.branchId }),
+    ...(filters.branchId
+      ? { branchId: filters.branchId }
+      : filters.branchIds && filters.branchIds.length > 0
+        ? { branchId: { in: filters.branchIds } }
+        : {}),
     ...(filters.type && { type: filters.type }),
     ...(filters.status && { status: filters.status as "COMPLETED" | "VOIDED" | "PENDING" | "DISPUTED" | "REQUIRES_APPROVAL" }),
     ...(filters.providerId && { providerId: filters.providerId }),

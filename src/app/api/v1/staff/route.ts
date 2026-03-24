@@ -1,8 +1,8 @@
-import { NextRequest } from "next/server";
 import { withAuth, ok, err, parseBody } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
+import { sendInvitationEmail } from "@/lib/email";
 import { createAuditLog } from "@/services/audit.service";
-import { inviteStaffSchema } from "@/lib/validations/auth";
+import { inviteStaffSchema, type InviteStaffInput } from "@/lib/validations/auth";
 
 export const GET = withAuth(async (req, ctx) => {
   const users = await db.user.findMany({
@@ -22,7 +22,7 @@ export const GET = withAuth(async (req, ctx) => {
 
 export const POST = withAuth(
   async (req, ctx) => {
-    let input;
+    let input: InviteStaffInput;
     try {
       input = await parseBody(req, inviteStaffSchema);
     } catch {
@@ -47,7 +47,20 @@ export const POST = withAuth(
       },
     });
 
-    // TODO: Send invitation email with token
+    const appUrl = new URL(req.url).origin;
+    const acceptUrl = `${appUrl}/accept-invitation/${invitation.token}`;
+
+    const organization = await db.organization.findUnique({
+      where: { id: ctx.organizationId },
+      select: { name: true },
+    });
+
+    await sendInvitationEmail({
+      to: input.email,
+      organizationName: organization?.name,
+      role: input.role,
+      acceptUrl,
+    });
 
     await createAuditLog({
       organizationId: ctx.organizationId,
@@ -58,7 +71,14 @@ export const POST = withAuth(
       description: `Invitation sent to ${input.email} for role ${input.role}`,
     });
 
-    return ok({ invitation, message: "Invitation sent successfully" }, 201);
+    return ok(
+      {
+        invitation,
+        acceptUrl,
+        message: "Invitation created successfully",
+      },
+      201
+    );
   },
   { requiredRoles: ["OWNER", "BRANCH_MANAGER"] }
 );

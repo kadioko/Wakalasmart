@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { db } from "@/lib/db";
+import { sendPasswordResetEmail } from "@/lib/email";
 
 export const auth = betterAuth({
   database: prismaAdapter(db, {
@@ -10,8 +11,10 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false, // set true in production
     async sendResetPassword({ user, url }) {
-      // TODO: Send email via SMTP
-      console.log(`Reset password link for ${user.email}: ${url}`);
+      await sendPasswordResetEmail({
+        to: user.email,
+        resetUrl: url,
+      });
     },
   },
   session: {

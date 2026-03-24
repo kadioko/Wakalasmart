@@ -3,21 +3,21 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { signUp } from "@/lib/auth-client";
-import { db } from "@/lib/db";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import { Building2 } from "lucide-react";
-import { slugify } from "@/lib/utils";
 
 export default function RegisterPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next");
 
   const {
     register,
@@ -42,20 +42,12 @@ export default function RegisterPage() {
         return;
       }
 
-      // Create organization via API
-      const orgRes = await fetch("/api/v1/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationName: data.organizationName }),
-      });
-
-      if (!orgRes.ok) {
-        const err = await orgRes.json();
-        setServerError(err.error || "Failed to create organization");
+      if (nextPath) {
+        router.push(nextPath);
         return;
       }
 
-      router.push("/onboarding");
+      router.push(`/onboarding?organizationName=${encodeURIComponent(data.organizationName)}`);
     } catch {
       setServerError("An unexpected error occurred. Please try again.");
     }
