@@ -1,8 +1,7 @@
 import { withAuth, ok, err, getPagination, parseBody, getBranchScope } from "@server/lib/api-helpers";
 import { createTransaction, getTransactions } from "@server/services/transaction.service";
-import { createTransactionRefinedSchema } from "@server/validations/transaction";
+import { createTransactionRefinedSchema, type CreateTransactionInput } from "@server/validations/transaction";
 import { TransactionType } from "@prisma/client";
-import type { CreateTransactionInput } from "@shared/types";
 
 export const GET = withAuth(async (req, ctx) => {
   const url = new URL(req.url);
@@ -86,7 +85,7 @@ export const POST = withAuth(
 
     const ipAddress = req.headers.get("x-forwarded-for") || undefined;
     const transaction = await createTransaction(
-      input,
+      input as Parameters<typeof createTransaction>[0],
       ctx.userId,
       ctx.organizationId,
       ipAddress

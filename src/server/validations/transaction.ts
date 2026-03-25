@@ -1,11 +1,22 @@
 import { z } from "zod";
-import { TransactionType } from "@prisma/client";
+
+const transactionTypeValues = [
+  "FLOAT_PURCHASE",
+  "DEPOSIT",
+  "WITHDRAWAL",
+  "TRANSFER",
+  "AIRTIME_SALE",
+  "BILL_PAYMENT",
+  "MERCHANT_PAYMENT",
+  "CASH_IN",
+  "CASH_OUT",
+] as const;
 
 export const createTransactionSchema = z.object({
   branchId: z.string().min(1, "Branch is required"),
   tillId: z.string().min(1, "Till is required"),
   providerId: z.string().optional(),
-  type: z.nativeEnum(TransactionType),
+  type: z.enum(transactionTypeValues),
   amount: z
     .number({ message: "Amount must be a number" })
     .positive("Amount must be positive")
@@ -30,18 +41,19 @@ export const createTransactionSchema = z.object({
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 
 // Validate that float transactions have a provider
+const floatTypes = [
+  "FLOAT_PURCHASE",
+  "DEPOSIT",
+  "WITHDRAWAL",
+  "TRANSFER",
+  "AIRTIME_SALE",
+  "BILL_PAYMENT",
+  "MERCHANT_PAYMENT",
+] as const;
+
 export const createTransactionRefinedSchema = createTransactionSchema.refine(
   (data) => {
-    const floatTypes: TransactionType[] = [
-      "FLOAT_PURCHASE",
-      "DEPOSIT",
-      "WITHDRAWAL",
-      "TRANSFER",
-      "AIRTIME_SALE",
-      "BILL_PAYMENT",
-      "MERCHANT_PAYMENT",
-    ];
-    if (floatTypes.includes(data.type) && !data.providerId) {
+    if ((floatTypes as readonly string[]).includes(data.type) && !data.providerId) {
       return false;
     }
     return true;
