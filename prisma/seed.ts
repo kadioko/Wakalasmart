@@ -4,18 +4,12 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hashPassword } from "better-auth/crypto";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/wakalasmart",
 });
 const db = new PrismaClient({ adapter });
-
-async function hashPassword(password: string): Promise<string> {
-  const { createHash } = await import("crypto");
-  // In production Better Auth handles hashing — this seed creates accounts
-  // via the accounts table with Better Auth's expected format
-  return createHash("sha256").update(password).digest("hex");
-}
 
 async function main() {
   console.log("🌱 Seeding WakalaSmart demo data...");
@@ -89,13 +83,13 @@ async function main() {
   });
 
   // Create Better Auth account for owner (password: Demo@1234)
+  const demoPassword = await hashPassword("Demo@1234");
   await db.account.create({
     data: {
       userId: ownerUser.id,
       accountId: ownerUser.id,
       providerId: "credential",
-      password:
-        "$2b$10$rOzr8tBNTFf9y1vXiUk9Xe0/j7zQzGCi5yBMJBkYEQwPsF9Xe2Y.e",
+      password: demoPassword,
     },
   });
 
@@ -114,8 +108,7 @@ async function main() {
       userId: managerUser.id,
       accountId: managerUser.id,
       providerId: "credential",
-      password:
-        "$2b$10$rOzr8tBNTFf9y1vXiUk9Xe0/j7zQzGCi5yBMJBkYEQwPsF9Xe2Y.e",
+      password: demoPassword,
     },
   });
 
@@ -129,6 +122,15 @@ async function main() {
     },
   });
 
+  await db.account.create({
+    data: {
+      userId: cashier1.id,
+      accountId: cashier1.id,
+      providerId: "credential",
+      password: demoPassword,
+    },
+  });
+
   const cashier2 = await db.user.create({
     data: {
       organizationId: org.id,
@@ -139,7 +141,35 @@ async function main() {
     },
   });
 
-  console.log("  ✓ Users created (owner, manager, 2 cashiers)");
+  await db.account.create({
+    data: {
+      userId: cashier2.id,
+      accountId: cashier2.id,
+      providerId: "credential",
+      password: demoPassword,
+    },
+  });
+
+  // Create SUPER_ADMIN user (platform-level admin, no organization)
+  const superAdmin = await db.user.create({
+    data: {
+      email: "admin@wakalasmart.co.tz",
+      name: "Platform Admin",
+      role: "SUPER_ADMIN",
+      emailVerified: true,
+    },
+  });
+
+  await db.account.create({
+    data: {
+      userId: superAdmin.id,
+      accountId: superAdmin.id,
+      providerId: "credential",
+      password: demoPassword,
+    },
+  });
+
+  console.log("  ✓ Users created (owner, manager, 2 cashiers, super admin)");
 
   // ============================================================
   // 3. CREATE BRANCHES

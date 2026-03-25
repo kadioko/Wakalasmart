@@ -45,6 +45,7 @@ The database has been seeded with a demo organization and example operational da
 
 | Role | Name | Email | Password | Branch Access |
 | --- | --- | --- | --- | --- |
+| Super Admin | Platform Admin | `admin@wakalasmart.co.tz` | `Demo@1234` | Platform-level (no organization) |
 | Owner | Amina Mohamed | `amina@aminawakala.co.tz` | `Demo@1234` | All organization branches |
 | Branch Manager | Juma Salim | `juma@aminawakala.co.tz` | `Demo@1234` | Kariakoo Main Branch, Ilala Branch |
 | Cashier | Fatuma Hassan | `fatuma@aminawakala.co.tz` | `Demo@1234` | Kariakoo Main Branch |
@@ -53,6 +54,34 @@ The database has been seeded with a demo organization and example operational da
 ---
 
 ## Role Guide
+
+### Super Admin
+
+**Primary purpose:** Platform-level administration across all organizations.
+
+**Typical responsibilities:**
+
+- Monitor platform health and usage
+- Manage organizations at the platform level
+- Handle support escalations
+- Access system-wide audit logs
+
+**What the Super Admin should be able to do:**
+
+- Access platform-level administrative functions
+- View and manage all organizations
+- Access system-wide data for support purposes
+
+**What the Super Admin should not be able to do:**
+
+- Operate as a regular user within a specific organization (no organization assignment)
+
+**Recommended tests for Super Admin:**
+
+- Log in and verify platform-level access
+- Confirm no organization-specific dashboard appears (user has no organizationId)
+
+---
 
 ### Owner
 
