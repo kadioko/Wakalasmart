@@ -6,7 +6,9 @@ WakalaSmart is built as a production-grade SaaS platform for Tanzanian mobile mo
 
 For the current execution plan and a more detailed assessment of what is still left to build, see [`docs/SPRINT_ROADMAP.md`](./SPRINT_ROADMAP.md). This document remains a higher-level phase roadmap.
 
-Status note: the repository already contains substantial implementation work for the early phases, but the detailed sprint roadmap should be treated as the source of truth for what is still incomplete.
+For seeded demo users, role descriptions, and smoke-test guidance, see [`docs/TEST_ACCOUNTS.md`](./TEST_ACCOUNTS.md).
+
+Status note: the repository already contains substantial implementation work for the early phases, the app is live on **Vercel**, and PostgreSQL is live on **Railway**. The detailed sprint roadmap should still be treated as the source of truth for what is still incomplete.
 
 ---
 
@@ -179,12 +181,20 @@ npm install -D @testing-library/react @testing-library/user-event
 
 | Component | Service |
 |-----------|---------|
-| App hosting | Railway (auto-deploy from Git) |
-| Database | Neon PostgreSQL (serverless, branching) |
+| App hosting | Vercel |
+| Database | Railway PostgreSQL |
 | File storage | Cloudflare R2 |
 | Email | Resend |
 | Monitoring | Sentry + Uptime Robot |
 | CDN | Cloudflare |
+
+### Current Deployment Status
+
+- Core app deployment is live on **Vercel**
+- PostgreSQL database is live on **Railway**
+- Health endpoint is available at `/api/health`
+- Railway config and environment templates are present in the repository
+- Demo data has been seeded for testing and walkthroughs
 
 ### Environment Variables for Production
 

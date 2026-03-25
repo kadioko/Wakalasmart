@@ -2,15 +2,28 @@
 
 **The Operating System for Tanzania's Mobile Money Agents**
 
-WakalaSmart is a production-grade vertical SaaS platform built specifically for Tanzanian mobile money agent businesses (wakalas). It gives wakala owners, managers, and cashiers real-time visibility into cash, float, staff activity, branch performance, and profitability — while systematically reducing losses and improving accountability. Built on Next.js 15, Prisma 7, Better Auth, and PostgreSQL.
+WakalaSmart is a production-grade vertical SaaS platform built specifically for Tanzanian mobile money agent businesses (wakalas). It gives wakala owners, managers, and cashiers real-time visibility into cash, float, staff activity, branch performance, and profitability — while systematically reducing losses and improving accountability. Built on Next.js 16, Prisma 7, Better Auth, and PostgreSQL.
 
-![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)
 ![Better Auth](https://img.shields.io/badge/Better_Auth-latest-green)
 ![TanStack Query](https://img.shields.io/badge/TanStack_Query-5-FF4154?logo=reactquery)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?logo=tailwindcss)
+
+---
+
+## Live Deployment Status
+
+WakalaSmart is currently live with:
+
+- **Frontend / App runtime:** Vercel
+- **PostgreSQL database:** Railway
+
+The production database has been seeded with demo data for role-based testing and walkthroughs.
+
+For seeded demo users and test guidance, see [`docs/TEST_ACCOUNTS.md`](docs/TEST_ACCOUNTS.md).
 
 ---
 
@@ -129,7 +142,7 @@ Organization profile, alert thresholds, security settings, provider configuratio
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Language | TypeScript 5 (strict) |
 | Database | PostgreSQL 16 |
 | ORM | Prisma 7 |
@@ -166,18 +179,15 @@ wakalasmart/
 │   │   │   └── settings/
 │   │   └── api/
 │   │       └── v1/          # All REST API routes
-│   ├── lib/
-│   │   ├── auth.ts          # Better Auth config
-│   │   ├── db.ts            # Prisma client singleton
-│   │   ├── middleware.ts     # withAuth + tenant isolation
-│   │   └── services/        # Business logic
-│   │       ├── balance.ts
-│   │       ├── transaction.ts
-│   │       ├── reconciliation.ts
-│   │       ├── dashboard.ts
-│   │       ├── alert.ts
-│   │       └── audit.ts
-│   └── components/          # React components
+│   ├── client/              # Client-side UI and auth client
+│   │   ├── components/
+│   │   └── lib/
+│   ├── server/              # Server-side auth, db, services, validations
+│   │   ├── lib/
+│   │   ├── services/
+│   │   └── validations/
+│   ├── shared/              # Shared app types
+│   └── lib/                 # Shared utilities
 ├── prisma/
 │   ├── schema.prisma
 │   └── seed.ts
@@ -185,7 +195,8 @@ wakalasmart/
 │   ├── PRD.md
 │   ├── ARCHITECTURE.md
 │   ├── ROADMAP.md
-│   └── SPRINT_ROADMAP.md
+│   ├── SPRINT_ROADMAP.md
+│   └── TEST_ACCOUNTS.md
 └── docker-compose.yml
 ```
 
@@ -229,9 +240,13 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 **Demo credentials (seeded):**
-- Owner: `amina@example.com` / `password123`
-- Manager: `fatuma@example.com` / `password123`
-- Cashier: `juma@example.com` / `password123`
+
+- Owner: `amina@aminawakala.co.tz` / `Demo@1234`
+- Branch Manager: `juma@aminawakala.co.tz` / `Demo@1234`
+- Cashier: `fatuma@aminawakala.co.tz` / `Demo@1234`
+- Cashier: `said@aminawakala.co.tz` / `Demo@1234`
+
+See [`docs/TEST_ACCOUNTS.md`](docs/TEST_ACCOUNTS.md) for role details, branch access, and recommended smoke tests.
 
 ### Environment Variables
 
@@ -294,7 +309,7 @@ Prisma 7 includes significant performance improvements and the new `prisma.confi
 
 ## Roadmap
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full development roadmap and [`docs/SPRINT_ROADMAP.md`](docs/SPRINT_ROADMAP.md) for sprint-by-sprint implementation details.
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full development roadmap, [`docs/SPRINT_ROADMAP.md`](docs/SPRINT_ROADMAP.md) for sprint-by-sprint implementation details, and [`docs/TEST_ACCOUNTS.md`](docs/TEST_ACCOUNTS.md) for seeded test users.
 
 **Upcoming (Post-MVP):**
 - Mobile app (React Native / Expo) — cashier-focused POS

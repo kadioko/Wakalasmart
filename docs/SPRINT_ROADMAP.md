@@ -4,6 +4,8 @@
 
 This document translates the product and architecture docs into an execution-focused implementation roadmap based on the current repository state.
 
+The app is currently live on **Vercel** with PostgreSQL hosted on **Railway**. For seeded demo users, role coverage, and smoke-test guidance, see [`docs/TEST_ACCOUNTS.md`](./TEST_ACCOUNTS.md).
+
 It is intended to answer two questions:
 
 1. What already exists in the project?
