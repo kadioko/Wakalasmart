@@ -13,6 +13,7 @@ import {
   Banknote,
   Smartphone,
   Clock,
+  Play,
 } from "lucide-react";
 import {
   AreaChart,
@@ -24,6 +25,24 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { DashboardStats } from "@shared/types";
+
+interface CashierDashboardData {
+  activeShift: {
+    id: string;
+    openedAt: string;
+    shiftTills: { till: { name: string }; openingBalance: number }[];
+  } | null;
+  shiftStats: {
+    txCount: number;
+    totalAmount: number;
+    totalCommission: number;
+  } | null;
+  balances: {
+    cashBalance: number;
+    floatBalances: { providerName: string; balance: number }[];
+  };
+  todayAlerts: number;
+}
 
 function StatCard({
   title,
@@ -70,7 +89,7 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const { data: statsData, isLoading } = useQuery<{ data: DashboardStats }>({
+  const { data: statsData, isLoading } = useQuery<{ data: DashboardStats | CashierDashboardData }>({
     queryKey: ["dashboard-stats"],
     queryFn: () => fetch("/api/v1/dashboard").then((r) => r.json()),
     refetchInterval: 60000,
@@ -83,8 +102,13 @@ export default function DashboardPage() {
     refetchInterval: 300000,
   });
 
-  const stats = statsData?.data;
-  const trends = trendsData?.data ?? [];
+  const rawData = statsData?.data;
+  const trends = Array.isArray(trendsData?.data) ? trendsData.data : [];
+  
+  // Detect if this is cashier data (has activeShift property) vs owner data (has totalCashInToday)
+  const isCashierView = rawData && 'activeShift' in rawData;
+  const stats = isCashierView ? null : (rawData as DashboardStats | undefined);
+  const cashierData = isCashierView ? (rawData as CashierDashboardData) : null;
 
   if (isLoading) {
     return (
@@ -95,6 +119,106 @@ export default function DashboardPage() {
             <div key={i} className="h-32 bg-muted rounded-xl" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  // Render Cashier Dashboard
+  if (isCashierView && cashierData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">My Dashboard</h1>
+          <p className="text-muted-foreground text-sm">
+            Today&apos;s overview — {new Date().toLocaleDateString("en-TZ", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+
+        {/* Shift Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Play className="h-4 w-4" />
+              Current Shift
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {cashierData.activeShift ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="success">Active</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Started {new Date(cashierData.activeShift.openedAt).toLocaleTimeString()}
+                  </span>
+                </div>
+                {cashierData.shiftStats && (
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Transactions</p>
+                      <p className="text-xl font-bold">{cashierData.shiftStats.txCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total Amount</p>
+                      <p className="text-xl font-bold">{formatCurrency(cashierData.shiftStats.totalAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Commission</p>
+                      <p className="text-xl font-bold">{formatCurrency(cashierData.shiftStats.totalCommission)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No active shift</p>
+                <p className="text-sm text-muted-foreground mt-1">Start a shift to begin recording transactions</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Balances */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+          <StatCard
+            title="Cash Balance"
+            value={formatCurrency(cashierData.balances?.cashBalance ?? 0)}
+            icon={Banknote}
+            iconClass="text-yellow-600"
+          />
+          <StatCard
+            title="Active Alerts"
+            value={String(cashierData.todayAlerts ?? 0)}
+            icon={AlertTriangle}
+            iconClass="text-orange-500"
+          />
+        </div>
+
+        {/* Float Balances */}
+        {cashierData.balances?.floatBalances && cashierData.balances.floatBalances.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Float Balances
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+                {cashierData.balances.floatBalances.map((fb, idx) => (
+                  <div key={idx} className="rounded-lg border p-3">
+                    <p className="text-xs font-semibold text-muted-foreground">{fb.providerName}</p>
+                    <p className="text-base font-bold tabular-nums">{formatCurrency(fb.balance)}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }
