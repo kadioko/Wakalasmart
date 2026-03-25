@@ -1,6 +1,5 @@
-import { NextRequest } from "next/server";
-import { withAuth, ok, err } from "@/lib/api-helpers";
-import { markAlertRead, dismissAlert } from "@/services/alert.service";
+import { withAuth, ok, err } from "@server/lib/api-helpers";
+import { markAlertRead, dismissAlert } from "@server/services/alert.service";
 
 export const POST = withAuth(async (req, ctx, params) => {
   const id = params?.id;

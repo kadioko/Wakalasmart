@@ -1,8 +1,7 @@
-import { NextRequest } from "next/server";
-import { withAuth, ok, err, parseBody } from "@/lib/api-helpers";
-import { db } from "@/lib/db";
+import { withAuth, ok, err, parseBody } from "@server/lib/api-helpers";
+import { db } from "@server/lib/db";
 import { z } from "zod";
-import { getTillCashBalance, getTillFloatBalance } from "@/services/balance.service";
+import { getTillCashBalance, getTillFloatBalance } from "@server/services/balance.service";
 
 const createTillSchema = z.object({
   branchId: z.string().min(1),
@@ -50,7 +49,7 @@ export const POST = withAuth(
     let input;
     try {
       input = await parseBody(req, createTillSchema);
-    } catch (e: unknown) {
+    } catch {
       return err("Invalid input", 422);
     }
 

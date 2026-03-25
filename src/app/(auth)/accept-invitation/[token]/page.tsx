@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useSession } from "@/lib/auth-client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@client/components/ui/card";
+import { Button } from "@client/components/ui/button";
+import { useSession } from "@client/lib/auth-client";
 
 interface InvitationDetails {
   id: string;

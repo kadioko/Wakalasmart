@@ -1,18 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { resetPasswordSchema, type ResetPasswordInput } from "@/lib/validations/auth";
-import { resetPassword } from "@/lib/auth-client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@client/components/ui/card";
+import { Button } from "@client/components/ui/button";
+import { Input } from "@client/components/ui/input";
+import { Label } from "@client/components/ui/label";
+import { resetPasswordSchema, type ResetPasswordInput } from "@server/validations/auth";
+import { resetPassword } from "@client/lib/auth-client";
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center p-8"><p>Loading...</p></div>}>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();

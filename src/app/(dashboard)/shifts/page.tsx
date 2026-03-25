@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@client/components/ui/button";
+import { Card } from "@client/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+} from "@client/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+} from "@client/components/ui/dialog";
+import { Label } from "@client/components/ui/label";
+import { Input } from "@client/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { formatDateTime, formatCurrency, getStatusColor } from "@/lib/utils";
-import { Plus, Clock, CheckCircle } from "lucide-react";
+} from "@client/components/ui/select";
+import { formatDateTime, getStatusColor } from "@/lib/utils";
+import { Plus } from "lucide-react";
 
 export default function ShiftsPage() {
   const [openShiftOpen, setOpenShiftOpen] = useState(false);

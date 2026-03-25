@@ -1,8 +1,8 @@
-import { withAuth, ok, err, getPagination, parseBody, getBranchScope } from "@/lib/api-helpers";
-import { createTransaction, getTransactions } from "@/services/transaction.service";
-import { createTransactionRefinedSchema } from "@/lib/validations/transaction";
+import { withAuth, ok, err, getPagination, parseBody, getBranchScope } from "@server/lib/api-helpers";
+import { createTransaction, getTransactions } from "@server/services/transaction.service";
+import { createTransactionRefinedSchema } from "@server/validations/transaction";
 import { TransactionType } from "@prisma/client";
-import type { CreateTransactionInput } from "@/types";
+import type { CreateTransactionInput } from "@shared/types";
 
 export const GET = withAuth(async (req, ctx) => {
   const url = new URL(req.url);

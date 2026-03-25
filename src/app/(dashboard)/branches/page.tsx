@@ -2,23 +2,21 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@client/components/ui/button";
+import { Card, CardContent } from "@client/components/ui/card";
+import { Input } from "@client/components/ui/input";
+import { Label } from "@client/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { formatCurrency } from "@/lib/utils";
+} from "@client/components/ui/dialog";
 import { Plus, MapPin, Phone, Users, Wallet } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createBranchSchema, type CreateBranchInput } from "@/lib/validations/branch";
+import { createBranchSchema, type CreateBranchInput } from "@server/validations/branch";
 
 export default function BranchesPage() {
   const [newBranchOpen, setNewBranchOpen] = useState(false);

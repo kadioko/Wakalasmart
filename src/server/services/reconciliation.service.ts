@@ -1,6 +1,6 @@
-import { db } from "@/lib/db";
+import { db } from "@server/lib/db";
 import { createAuditLog } from "./audit.service";
-import type { CreateReconciliationInput } from "@/lib/validations/reconciliation";
+import type { CreateReconciliationInput } from "@server/validations/reconciliation";
 
 export async function createReconciliation(
   input: CreateReconciliationInput,
@@ -94,20 +94,6 @@ export async function createReconciliation(
         .reduce((sum, e) => sum + Number(e.amount), 0);
 
       const expectedFloat = openingFloat + floatIn - floatOut;
-
-      // Get breakdown from transactions
-      const txBreakdown = await db.transaction.aggregate({
-        where: {
-          organizationId,
-          branchId,
-          providerId: item.providerId,
-          status: "COMPLETED",
-          transactedAt: { gte: dayStart, lte: dayEnd },
-        },
-        _sum: {
-          amount: true,
-        },
-      });
 
       return {
         providerId: item.providerId,

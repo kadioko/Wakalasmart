@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@client/components/ui/button";
+import { Card, CardContent } from "@client/components/ui/card";
 import { formatRelativeTime, getStatusColor } from "@/lib/utils";
 import {
   AlertTriangle,

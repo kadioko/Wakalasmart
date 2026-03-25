@@ -20,7 +20,7 @@ import {
   Building2,
   Smartphone,
 } from "lucide-react";
-import { signOut } from "@/lib/auth-client";
+import { signOut } from "@client/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 const navigation = [

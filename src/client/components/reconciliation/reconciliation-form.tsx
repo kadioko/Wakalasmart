@@ -4,21 +4,21 @@ import { useState } from "react";
 import { useForm, useFieldArray, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@client/components/ui/button";
+import { Input } from "@client/components/ui/input";
+import { Label } from "@client/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@client/components/ui/select";
 import {
   createReconciliationSchema,
   type CreateReconciliationInput,
-} from "@/lib/validations/reconciliation";
-import { formatCurrency } from "@/lib/utils";
+} from "@server/validations/reconciliation";
+
 
 interface ReconciliationFormProps {
   onSuccess: () => void;
@@ -44,7 +44,6 @@ export function ReconciliationForm({ onSuccess }: ReconciliationFormProps) {
     register,
     handleSubmit,
     setValue,
-    watch,
     control,
     formState: { errors },
   } = useForm<CreateReconciliationInput>({
@@ -59,7 +58,7 @@ export function ReconciliationForm({ onSuccess }: ReconciliationFormProps) {
     },
   });
 
-  const { fields } = useFieldArray({ control, name: "floatItems" });
+  useFieldArray({ control, name: "floatItems" });
 
   const mutation = useMutation({
     mutationFn: async (data: CreateReconciliationInput) => {

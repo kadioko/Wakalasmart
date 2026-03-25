@@ -1,6 +1,5 @@
-import { NextRequest } from "next/server";
-import { withAuth, ok, getPagination } from "@/lib/api-helpers";
-import { getAlerts } from "@/services/alert.service";
+import { withAuth, ok, getPagination } from "@server/lib/api-helpers";
+import { getAlerts } from "@server/services/alert.service";
 import { AlertType } from "@prisma/client";
 
 export const GET = withAuth(async (req, ctx) => {

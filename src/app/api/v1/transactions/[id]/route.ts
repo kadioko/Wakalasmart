@@ -1,6 +1,6 @@
-import { withAuth, ok, err, getBranchScope } from "@/lib/api-helpers";
-import { approveTransaction, voidTransaction } from "@/services/transaction.service";
-import { db } from "@/lib/db";
+import { withAuth, ok, err, getBranchScope } from "@server/lib/api-helpers";
+import { approveTransaction, voidTransaction } from "@server/services/transaction.service";
+import { db } from "@server/lib/db";
 import { z } from "zod";
 
 const voidSchema = z.object({

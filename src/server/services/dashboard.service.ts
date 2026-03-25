@@ -1,6 +1,6 @@
-import { db } from "@/lib/db";
+import { db } from "@server/lib/db";
 import { getBranchBalances, getOrganizationBalances } from "./balance.service";
-import type { DashboardStats, FloatBalance } from "@/types";
+import type { DashboardStats, FloatBalance } from "@shared/types";
 
 function getTodayRange() {
   const start = new Date();
@@ -168,8 +168,6 @@ export async function getCashierDashboard(
   userId: string,
   branchId: string
 ) {
-  const { start, end } = getTodayRange();
-
   const activeShift = await db.shift.findFirst({
     where: { organizationId, branchId, openedById: userId, status: "OPEN" },
     include: { shiftTills: { include: { till: true } } },

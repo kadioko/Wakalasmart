@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { auth } from "@server/lib/auth";
+import { db } from "@server/lib/db";
 import { UserRole } from "@prisma/client";
 import { ZodSchema } from "zod";
 

@@ -1,10 +1,9 @@
-import { NextRequest } from "next/server";
-import { withAuth, ok, err } from "@/lib/api-helpers";
+import { withAuth, ok, err } from "@server/lib/api-helpers";
 import {
   getOwnerDashboard,
   getCashierDashboard,
   getDashboardTrends,
-} from "@/services/dashboard.service";
+} from "@server/services/dashboard.service";
 
 export const GET = withAuth(async (req, ctx) => {
   const url = new URL(req.url);

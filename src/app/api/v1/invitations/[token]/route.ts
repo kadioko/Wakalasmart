@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { createAuditLog } from "@/services/audit.service";
+import { auth } from "@server/lib/auth";
+import { db } from "@server/lib/db";
+import { createAuditLog } from "@server/services/audit.service";
 
 function isInvitationExpired(expiresAt: Date) {
   return expiresAt.getTime() < Date.now();

@@ -2,24 +2,24 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@client/components/ui/button";
+import { Card, CardContent } from "@client/components/ui/card";
+import { Input } from "@client/components/ui/input";
+import { Label } from "@client/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+} from "@client/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@client/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@client/components/ui/select";
 import { formatDateTime } from "@/lib/utils";
 import { Plus, Mail, UserCheck } from "lucide-react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { inviteStaffSchema, type InviteStaffInput } from "@/lib/validations/auth";
+import { inviteStaffSchema, type InviteStaffInput } from "@server/validations/auth";
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Owner",

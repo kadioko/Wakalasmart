@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency, getStatusColor } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@client/components/ui/card";
+import { Badge } from "@client/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -22,11 +22,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend,
 } from "recharts";
-import type { DashboardStats } from "@/types";
+import type { DashboardStats } from "@shared/types";
 
 function StatCard({
   title,

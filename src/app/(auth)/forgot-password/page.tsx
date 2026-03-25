@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { forgotPasswordSchema, type ForgotPasswordInput } from "@/lib/validations/auth";
-import { requestPasswordReset } from "@/lib/auth-client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@client/components/ui/card";
+import { Button } from "@client/components/ui/button";
+import { Input } from "@client/components/ui/input";
+import { Label } from "@client/components/ui/label";
+import { forgotPasswordSchema, type ForgotPasswordInput } from "@server/validations/auth";
+import { requestPasswordReset } from "@client/lib/auth-client";
 
 export default function ForgotPasswordPage() {
   const [serverMessage, setServerMessage] = useState<string | null>(null);

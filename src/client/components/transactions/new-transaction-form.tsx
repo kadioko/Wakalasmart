@@ -3,17 +3,17 @@
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@client/components/ui/button";
+import { Input } from "@client/components/ui/input";
+import { Label } from "@client/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { createTransactionSchema, type CreateTransactionInput } from "@/lib/validations/transaction";
+} from "@client/components/ui/select";
+import { createTransactionSchema, type CreateTransactionInput } from "@server/validations/transaction";
 import { useState } from "react";
 
 const TRANSACTION_TYPES = [

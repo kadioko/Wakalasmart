@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db } from "@server/lib/db";
 import { type ProviderCode } from "@prisma/client";
 
 export interface TillBalance {

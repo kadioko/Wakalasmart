@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db } from "@server/lib/db";
 import { AlertSeverity, AlertType, Prisma } from "@prisma/client";
 
 export async function createAlert(params: {

@@ -1,9 +1,9 @@
-import { db } from "@/lib/db";
+import { db } from "@server/lib/db";
 import { TransactionType, Prisma } from "@prisma/client";
 import { appendCashLedgerEntry, appendFloatLedgerEntry } from "./balance.service";
 import { createAuditLog } from "./audit.service";
 import { checkAndCreateAlerts, checkDuplicateReference } from "./alert.service";
-import type { CreateTransactionInput } from "@/types";
+import type { CreateTransactionInput } from "@shared/types";
 
 /**
  * Determines ledger impact of each transaction type.

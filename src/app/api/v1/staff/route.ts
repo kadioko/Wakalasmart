@@ -1,8 +1,8 @@
-import { withAuth, ok, err, parseBody } from "@/lib/api-helpers";
-import { db } from "@/lib/db";
-import { sendInvitationEmail } from "@/lib/email";
-import { createAuditLog } from "@/services/audit.service";
-import { inviteStaffSchema, type InviteStaffInput } from "@/lib/validations/auth";
+import { withAuth, ok, err, parseBody } from "@server/lib/api-helpers";
+import { db } from "@server/lib/db";
+import { sendInvitationEmail } from "@server/lib/email";
+import { createAuditLog } from "@server/services/audit.service";
+import { inviteStaffSchema, type InviteStaffInput } from "@server/validations/auth";
 
 export const GET = withAuth(async (req, ctx) => {
   const users = await db.user.findMany({

@@ -1,6 +1,5 @@
-import { NextRequest } from "next/server";
-import { withAuth, ok, getPagination } from "@/lib/api-helpers";
-import { getAuditLogs } from "@/services/audit.service";
+import { withAuth, ok, getPagination } from "@server/lib/api-helpers";
+import { getAuditLogs } from "@server/services/audit.service";
 import { AuditAction } from "@prisma/client";
 
 export const GET = withAuth(

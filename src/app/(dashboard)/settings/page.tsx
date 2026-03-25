@@ -1,17 +1,13 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useState, useEffect } from "react";
-import { formatCurrency } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@client/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@client/components/ui/card";
+import { Input } from "@client/components/ui/input";
+import { Label } from "@client/components/ui/label";
 import { Settings, Shield, Bell, Building2 } from "lucide-react";
 
 export default function SettingsPage() {
-  const queryClient = useQueryClient();
-
   const { data: orgData } = useQuery({
     queryKey: ["org"],
     queryFn: () => fetch("/api/v1/org").then((r) => r.json()),

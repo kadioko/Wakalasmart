@@ -1,9 +1,8 @@
-import { NextRequest } from "next/server";
-import { withAuth, ok, err, parseBody } from "@/lib/api-helpers";
-import { db } from "@/lib/db";
-import { createAuditLog } from "@/services/audit.service";
-import { createBranchSchema } from "@/lib/validations/branch";
-import { slugify } from "@/lib/utils";
+import { withAuth, ok, err, parseBody } from "@server/lib/api-helpers";
+import { db } from "@server/lib/db";
+import { createAuditLog } from "@server/services/audit.service";
+import { createBranchSchema } from "@server/validations/branch";
+
 
 export const GET = withAuth(async (req, ctx) => {
   const branches = await db.branch.findMany({

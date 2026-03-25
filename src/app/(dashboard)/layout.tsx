@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
+import { Sidebar } from "@client/components/layout/sidebar";
+import { Topbar } from "@client/components/layout/topbar";
 import { cn } from "@/lib/utils";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@client/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 

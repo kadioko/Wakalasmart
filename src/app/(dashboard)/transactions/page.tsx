@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@client/components/ui/button";
+import { Input } from "@client/components/ui/input";
+import { Card, CardContent } from "@client/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@client/components/ui/select";
 import {
   Table,
   TableBody,
@@ -20,18 +19,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@client/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@client/components/ui/dialog";
 import { formatCurrency, formatDateTime, getStatusColor } from "@/lib/utils";
-import { Plus, Search, Download, Filter } from "lucide-react";
-import { NewTransactionForm } from "@/components/transactions/new-transaction-form";
-import type { TransactionType } from "@prisma/client";
+import { Plus, Search, Download } from "lucide-react";
+import { NewTransactionForm } from "@client/components/transactions/new-transaction-form";
+
 
 const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   DEPOSIT: "Cash In",

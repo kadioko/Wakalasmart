@@ -1,9 +1,9 @@
 "use client";
 
 import { Bell, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useSession } from "@/lib/auth-client";
+import { Button } from "@client/components/ui/button";
+
+import { useSession } from "@client/lib/auth-client";
 import { useQuery } from "@tanstack/react-query";
 
 interface TopbarProps {

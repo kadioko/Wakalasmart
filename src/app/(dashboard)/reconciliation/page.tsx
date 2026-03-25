@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@client/components/ui/button";
+import { Card } from "@client/components/ui/card";
+
 import {
   Table,
   TableBody,
@@ -12,21 +12,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@client/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@client/components/ui/dialog";
 import { formatCurrency, formatDate, getStatusColor } from "@/lib/utils";
-import { Plus, CheckCircle2, XCircle, Eye } from "lucide-react";
-import { ReconciliationForm } from "@/components/reconciliation/reconciliation-form";
+import { Plus, CheckCircle2 } from "lucide-react";
+import { ReconciliationForm } from "@client/components/reconciliation/reconciliation-form";
 
 export default function ReconciliationPage() {
   const [newRecOpen, setNewRecOpen] = useState(false);
-  const [selectedRec, setSelectedRec] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
