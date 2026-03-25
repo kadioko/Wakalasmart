@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { UserRole } from "@prisma/client";
+
+const userRoleValues = ["OWNER", "BRANCH_MANAGER", "CASHIER", "ACCOUNTANT", "SUPER_ADMIN"] as const;
 
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -51,7 +52,7 @@ export const resetPasswordSchema = z
 
 export const inviteStaffSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: z.nativeEnum(UserRole).refine(
+  role: z.enum(userRoleValues).refine(
     (r) => r !== "SUPER_ADMIN",
     "Cannot invite super admin"
   ),
