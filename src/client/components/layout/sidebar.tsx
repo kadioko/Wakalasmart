@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   ArrowRightLeft,
@@ -67,6 +68,18 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => {
+      const res = await fetch("/api/v1/me");
+      if (!res.ok) {
+        return null;
+      }
+      return res.json();
+    },
+  });
+
+  const isSuperAdmin = meData?.data?.role === "SUPER_ADMIN";
 
   const handleSignOut = async () => {
     await signOut();
@@ -114,6 +127,25 @@ export function Sidebar() {
             })}
           </div>
         ))}
+        {isSuperAdmin && (
+          <div className="mb-4">
+            <p className="mb-1 px-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Platform
+            </p>
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-3 px-6 py-2 text-sm transition-colors",
+                pathname === "/admin" || pathname.startsWith("/admin/")
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              )}
+            >
+              <Shield className="h-4 w-4 shrink-0" />
+              Admin
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Sign out */}

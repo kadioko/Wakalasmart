@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@client/components/ui/button";
 import { Input } from "@client/components/ui/input";
 import { Card, CardContent } from "@client/components/ui/card";
@@ -28,9 +28,8 @@ import {
   DialogTrigger,
 } from "@client/components/ui/dialog";
 import { formatCurrency, formatDateTime, getStatusColor } from "@/lib/utils";
-import { Plus, Search, Download } from "lucide-react";
+import { Check, Plus, Search, Trash2, Download } from "lucide-react";
 import { NewTransactionForm } from "@client/components/transactions/new-transaction-form";
-
 
 const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   DEPOSIT: "Cash In",
@@ -58,6 +57,11 @@ export default function TransactionsPage() {
   const [newTxOpen, setNewTxOpen] = useState(false);
   const queryClient = useQueryClient();
 
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => fetch("/api/v1/me").then((r) => r.json()),
+  });
+
   const params = new URLSearchParams({
     page: String(page),
     pageSize: "30",
@@ -75,11 +79,64 @@ export default function TransactionsPage() {
   const transactions = data?.data?.data ?? [];
   const total = data?.data?.total ?? 0;
   const totalPages = data?.data?.totalPages ?? 1;
+  const currentRole = meData?.data?.role as string | undefined;
+  const canApprove = currentRole === "OWNER" || currentRole === "BRANCH_MANAGER" || currentRole === "ACCOUNTANT";
+  const canVoid = currentRole === "OWNER" || currentRole === "BRANCH_MANAGER";
+
+  const refreshTransactionData = () => {
+    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes?: string }) => {
+      const res = await fetch(`/api/v1/transactions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to approve transaction");
+      }
+      return json;
+    },
+    onSuccess: refreshTransactionData,
+  });
+
+  const voidMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const res = await fetch(`/api/v1/transactions/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to void transaction");
+      }
+      return json;
+    },
+    onSuccess: refreshTransactionData,
+  });
 
   const handleSuccess = () => {
     setNewTxOpen(false);
-    queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    refreshTransactionData();
+  };
+
+  const handleApprove = async (id: string) => {
+    const notes = window.prompt("Approval notes (optional):") ?? undefined;
+    await approveMutation.mutateAsync({ id, notes: notes || undefined });
+  };
+
+  const handleVoid = async (id: string) => {
+    const reason = window.prompt("Reason for voiding this transaction:");
+    if (!reason || reason.trim().length < 5) {
+      window.alert("Please provide a reason of at least 5 characters.");
+      return;
+    }
+    await voidMutation.mutateAsync({ id, reason: reason.trim() });
   };
 
   return (
@@ -166,13 +223,14 @@ export default function TransactionsPage() {
                 <TableHead>Reference</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>By</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <TableRow key={i}>
-                    {[...Array(9)].map((_, j) => (
+                    {[...Array(10)].map((_, j) => (
                       <TableCell key={j}>
                         <div className="h-4 bg-muted rounded animate-pulse" />
                       </TableCell>
@@ -181,7 +239,7 @@ export default function TransactionsPage() {
                 ))
               ) : transactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12">
+                  <TableCell colSpan={10} className="text-center py-12">
                     <p className="text-muted-foreground text-sm">
                       No transactions found
                     </p>
@@ -199,6 +257,7 @@ export default function TransactionsPage() {
                   branch: { name: string };
                   provider?: { name: string } | null;
                   createdBy: { name: string };
+                  relatedTxId?: string | null;
                 }) => (
                   <TableRow key={tx.id} className="cursor-pointer">
                     <TableCell className="text-xs">
@@ -235,6 +294,34 @@ export default function TransactionsPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {tx.createdBy?.name}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {canApprove && tx.status === "REQUIRES_APPROVAL" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            disabled={approveMutation.isPending || voidMutation.isPending}
+                            onClick={() => void handleApprove(tx.id)}
+                          >
+                            <Check className="h-3 w-3" />
+                            Approve
+                          </Button>
+                        )}
+                        {canVoid && tx.status !== "VOIDED" && tx.type !== "REVERSAL" && !tx.relatedTxId && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-destructive hover:text-destructive"
+                            disabled={approveMutation.isPending || voidMutation.isPending}
+                            onClick={() => void handleVoid(tx.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Void
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

@@ -2,6 +2,7 @@ import { withAuth, ok, err, parseBody } from "@server/lib/api-helpers";
 import { db } from "@server/lib/db";
 import { z } from "zod";
 import { getTillCashBalance, getTillFloatBalance } from "@server/services/balance.service";
+import { createAuditLog } from "@server/services/audit.service";
 
 const createTillSchema = z.object({
   branchId: z.string().min(1),
@@ -66,6 +67,22 @@ export const POST = withAuth(
         type: input.type,
         description: input.description || null,
       },
+    });
+
+    await createAuditLog({
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      action: "TILL_CREATED",
+      resourceType: "till",
+      resourceId: till.id,
+      description: `Till ${till.name} created`,
+      after: {
+        branchId: till.branchId,
+        providerId: till.providerId,
+        type: till.type,
+      },
+      ipAddress: req.headers.get("x-forwarded-for") || undefined,
+      userAgent: req.headers.get("user-agent") || undefined,
     });
 
     return ok(till, 201);

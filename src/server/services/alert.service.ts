@@ -1,6 +1,28 @@
 import { db } from "@server/lib/db";
 import { AlertSeverity, AlertType, Prisma } from "@prisma/client";
 
+async function hasActiveSimilarAlert(params: {
+  organizationId: string;
+  branchId?: string;
+  type: AlertType;
+  title: string;
+  message: string;
+}) {
+  const existing = await db.alert.findFirst({
+    where: {
+      organizationId: params.organizationId,
+      branchId: params.branchId,
+      type: params.type,
+      title: params.title,
+      message: params.message,
+      status: { in: ["UNREAD", "READ"] },
+    },
+    orderBy: { triggeredAt: "desc" },
+  });
+
+  return Boolean(existing);
+}
+
 export async function createAlert(params: {
   organizationId: string;
   branchId?: string;
@@ -11,6 +33,18 @@ export async function createAlert(params: {
   metadata?: Record<string, unknown>;
 }): Promise<void> {
   try {
+    const alreadyExists = await hasActiveSimilarAlert({
+      organizationId: params.organizationId,
+      branchId: params.branchId,
+      type: params.type,
+      title: params.title,
+      message: params.message,
+    });
+
+    if (alreadyExists) {
+      return;
+    }
+
     await db.alert.create({
       data: {
         organizationId: params.organizationId,
@@ -31,15 +65,32 @@ export async function checkAndCreateAlerts(
   organizationId: string,
   branchId: string
 ): Promise<void> {
-  const settings = await db.alertSettings.findFirst({
-    where: {
-      organizationId,
-      OR: [{ branchId }, { branchId: null }],
-    },
-    orderBy: { branchId: "desc" }, // branch-specific first
-  });
+  const [settings, orgSettings] = await Promise.all([
+    db.alertSettings.findFirst({
+      where: {
+        organizationId,
+        OR: [{ branchId }, { branchId: null }],
+      },
+      orderBy: { branchId: "desc" },
+    }),
+    db.organizationSettings.findUnique({ where: { organizationId } }),
+  ]);
 
   if (!settings) return;
+
+  const now = new Date();
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(now);
+  dayEnd.setHours(23, 59, 59, 999);
+  const yesterdayStart = new Date(dayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+  const yesterdayEnd = new Date(dayEnd);
+  yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+
+  const settingsLargeTxThreshold = Number(settings.largeTxThreshold);
+  const largeTxThreshold = Number(orgSettings?.largeTxThreshold ?? settingsLargeTxThreshold);
 
   // Check cash balance
   if (settings.lowCashEnabled) {
@@ -107,6 +158,153 @@ export async function checkAndCreateAlerts(
           },
         });
       }
+    }
+  }
+
+  if (settings.largeTxEnabled) {
+    const largeTransactions = await db.transaction.findMany({
+      where: {
+        organizationId,
+        branchId,
+        status: "COMPLETED",
+        amount: { gte: largeTxThreshold },
+        transactedAt: { gte: dayStart, lte: dayEnd },
+      },
+      select: { id: true, type: true, amount: true, reference: true },
+      take: 5,
+      orderBy: { transactedAt: "desc" },
+    });
+
+    for (const transaction of largeTransactions) {
+      await createAlert({
+        organizationId,
+        branchId,
+        type: "LARGE_TRANSACTION",
+        severity: "INFO",
+        title: "Large Transaction Detected",
+        message: `${transaction.type} of TZS ${Number(transaction.amount).toLocaleString()} exceeded threshold${transaction.reference ? ` (${transaction.reference})` : ""}`,
+        metadata: {
+          transactionId: transaction.id,
+          threshold: largeTxThreshold,
+          amount: Number(transaction.amount),
+        },
+      });
+    }
+  }
+
+  if (settings.duplicateRefEnabled) {
+    const duplicateReferences = await db.transaction.groupBy({
+      by: ["reference"],
+      where: {
+        organizationId,
+        branchId,
+        status: { not: "VOIDED" },
+        reference: { not: null },
+        transactedAt: { gte: dayStart, lte: dayEnd },
+      },
+      _count: { reference: true },
+      having: {
+        reference: { _count: { gt: 1 } },
+      },
+    });
+
+    for (const duplicate of duplicateReferences) {
+      if (!duplicate.reference) continue;
+      await createAlert({
+        organizationId,
+        branchId,
+        type: "DUPLICATE_REFERENCE",
+        severity: "WARNING",
+        title: "Duplicate Reference Detected",
+        message: `Reference ${duplicate.reference} has been used ${duplicate._count.reference} times today`,
+        metadata: {
+          reference: duplicate.reference,
+          count: duplicate._count.reference,
+        },
+      });
+    }
+  }
+
+  if (settings.highReversalsEnabled) {
+    const reversalCount = await db.transaction.count({
+      where: {
+        organizationId,
+        branchId,
+        type: "REVERSAL",
+        status: "COMPLETED",
+        transactedAt: { gte: dayStart, lte: dayEnd },
+      },
+    });
+
+    if (reversalCount >= settings.highReversalsThreshold) {
+      await createAlert({
+        organizationId,
+        branchId,
+        type: "HIGH_REVERSALS",
+        severity: "WARNING",
+        title: "High Reversal Activity",
+        message: `${reversalCount} reversals recorded today in this branch`,
+        metadata: {
+          count: reversalCount,
+          threshold: settings.highReversalsThreshold,
+        },
+      });
+    }
+  }
+
+  if (settings.shiftNotClosedEnabled) {
+    const staleShift = await db.shift.findFirst({
+      where: {
+        organizationId,
+        branchId,
+        status: "OPEN",
+        openedAt: { lt: dayStart },
+      },
+      orderBy: { openedAt: "asc" },
+      include: {
+        openedBy: { select: { id: true, name: true } },
+      },
+    });
+
+    if (staleShift) {
+      await createAlert({
+        organizationId,
+        branchId,
+        type: "SHIFT_NOT_CLOSED",
+        severity: "WARNING",
+        title: "Shift Still Open",
+        message: `A shift opened by ${staleShift.openedBy.name} on ${staleShift.openedAt.toLocaleString()} is still open`,
+        metadata: {
+          shiftId: staleShift.id,
+          openedById: staleShift.openedBy.id,
+          openedAt: staleShift.openedAt.toISOString(),
+        },
+      });
+    }
+  }
+
+  if (settings.unreconciledDayEnabled) {
+    const yesterdayReconciliation = await db.reconciliation.findFirst({
+      where: {
+        organizationId,
+        branchId,
+        date: { gte: yesterdayStart, lte: yesterdayEnd },
+        status: { in: ["SUBMITTED", "APPROVED"] },
+      },
+    });
+
+    if (!yesterdayReconciliation) {
+      await createAlert({
+        organizationId,
+        branchId,
+        type: "UNRECONCILED_DAY",
+        severity: "WARNING",
+        title: "Unreconciled Previous Day",
+        message: "No submitted or approved reconciliation was found for the previous business day",
+        metadata: {
+          expectedDate: yesterdayStart.toISOString(),
+        },
+      });
     }
   }
 }

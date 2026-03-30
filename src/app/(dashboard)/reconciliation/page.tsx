@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from "@client/components/ui/dialog";
 import { formatCurrency, formatDate, getStatusColor } from "@/lib/utils";
-import { Plus, CheckCircle2 } from "lucide-react";
+import { Plus, CheckCircle2, XCircle } from "lucide-react";
 import { ReconciliationForm } from "@client/components/reconciliation/reconciliation-form";
 
 export default function ReconciliationPage() {
@@ -42,6 +42,21 @@ export default function ReconciliationPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "approve" }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reconciliations"] });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const res = await fetch(`/api/v1/reconciliation/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject", reason }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       return res.json();
@@ -72,6 +87,15 @@ export default function ReconciliationPage() {
       : v > 0
         ? "text-blue-600"
         : "text-red-600 font-semibold";
+
+  const handleReject = async (id: string) => {
+    const reason = window.prompt("Reason for rejecting this reconciliation:");
+    if (!reason || reason.trim().length < 5) {
+      window.alert("Please provide a rejection reason of at least 5 characters.");
+      return;
+    }
+    await rejectMutation.mutateAsync({ id, reason: reason.trim() });
+  };
 
   return (
     <div className="space-y-6">
@@ -189,16 +213,28 @@ export default function ReconciliationPage() {
                           </Button>
                         )}
                         {rec.status === "SUBMITTED" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600 hover:text-green-700"
-                            onClick={() => approveMutation.mutate(rec.id)}
-                            disabled={approveMutation.isPending}
-                          >
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Approve
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600 hover:text-green-700"
+                              onClick={() => approveMutation.mutate(rec.id)}
+                              disabled={approveMutation.isPending || rejectMutation.isPending}
+                            >
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => void handleReject(rec.id)}
+                              disabled={approveMutation.isPending || rejectMutation.isPending}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Reject
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>

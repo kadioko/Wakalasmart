@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "@client/lib/auth-client";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
@@ -35,6 +36,17 @@ export default function AdminLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { data: session, isPending } = useSession();
+  const { data: meData, isLoading: meLoading } = useQuery({
+    queryKey: ["me"],
+    enabled: Boolean(session?.user),
+    queryFn: async () => {
+      const res = await fetch("/api/v1/me");
+      if (!res.ok) {
+        throw new Error("Failed to load current user");
+      }
+      return res.json();
+    },
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -43,16 +55,15 @@ export default function AdminLayout({
     }
   }, [session, isPending, router]);
 
-  // Check if user is SUPER_ADMIN
-  const isSuperAdmin = session?.user && (session.user as { role?: string }).role === "SUPER_ADMIN";
+  const isSuperAdmin = meData?.data?.role === "SUPER_ADMIN";
 
   useEffect(() => {
-    if (!isPending && session?.user && !isSuperAdmin) {
+    if (!isPending && !meLoading && session?.user && !isSuperAdmin) {
       router.push("/dashboard");
     }
-  }, [session, isPending, isSuperAdmin, router]);
+  }, [session, isPending, meLoading, isSuperAdmin, router]);
 
-  if (isPending) {
+  if (isPending || (session?.user && meLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -150,7 +161,7 @@ export default function AdminLayout({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
-              {session.user.email}
+              {meData?.data?.email ?? session.user.email}
             </span>
           </div>
         </header>

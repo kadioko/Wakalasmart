@@ -1,6 +1,7 @@
 import { db } from "@server/lib/db";
 import { createAuditLog } from "./audit.service";
 import type { CreateReconciliationInput } from "@server/validations/reconciliation";
+import { summarizeProviderTransactions } from "./reconciliation-summary";
 
 export async function createReconciliation(
   input: CreateReconciliationInput,
@@ -86,6 +87,22 @@ export async function createReconciliation(
         },
       });
 
+      const providerTransactions = await db.transaction.findMany({
+        where: {
+          organizationId,
+          branchId,
+          providerId: item.providerId,
+          status: { in: ["COMPLETED", "VOIDED"] },
+          transactedAt: { gte: dayStart, lte: dayEnd },
+        },
+        select: {
+          type: true,
+          amount: true,
+          status: true,
+          relatedTxId: true,
+        },
+      });
+
       const floatIn = todayFloatEntries
         .filter((e) => e.entryType === "CREDIT")
         .reduce((sum, e) => sum + Number(e.amount), 0);
@@ -93,15 +110,19 @@ export async function createReconciliation(
         .filter((e) => e.entryType === "DEBIT")
         .reduce((sum, e) => sum + Number(e.amount), 0);
 
+      const { floatPurchased, depositsServed, withdrawalsServed } = summarizeProviderTransactions(
+        providerTransactions
+      );
+
       const expectedFloat = openingFloat + floatIn - floatOut;
 
       return {
         providerId: item.providerId,
         providerName: provider.name,
         openingFloat,
-        floatPurchased: floatIn,
-        depositsServed: 0, // simplified for MVP
-        withdrawalsServed: 0,
+        floatPurchased,
+        depositsServed,
+        withdrawalsServed,
         expectedFloat,
         actualFloat: item.actualFloat,
         variance: item.actualFloat - expectedFloat,
