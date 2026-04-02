@@ -1,31 +1,46 @@
 import { withAuth, ok, err } from "@server/lib/api-helpers";
 import { db } from "@server/lib/db";
+import {
+  buildExpenseReportWhere,
+  buildReconciliationReportWhere,
+  buildTransactionReportWhere,
+  getAccessibleBranchIds,
+  normalizeReportDateRange,
+} from "@server/services/report-filters";
 
 export const GET = withAuth(async (req, ctx) => {
   const url = new URL(req.url);
   const type = url.searchParams.get("type");
-  const branchId = url.searchParams.get("branchId") || undefined;
-  const startDate = url.searchParams.get("startDate")
-    ? new Date(url.searchParams.get("startDate")!)
-    : new Date(new Date().setDate(new Date().getDate() - 30));
-  const endDate = url.searchParams.get("endDate")
-    ? new Date(url.searchParams.get("endDate")!)
-    : new Date();
+  const requestedBranchId = url.searchParams.get("branchId") || undefined;
+  const { start: startDate, end: endDate } = normalizeReportDateRange(
+    url.searchParams.get("startDate"),
+    url.searchParams.get("endDate")
+  );
 
   if (!type) return err("Report type required", 400);
 
-  const orgFilter = {
+  let branchIds: string[] | undefined;
+  try {
+    branchIds = getAccessibleBranchIds(ctx, requestedBranchId);
+  } catch (error) {
+    if (error instanceof Error) {
+      return err(error.message, 403);
+    }
+    return err("Access denied to this branch", 403);
+  }
+
+  const transactionFilter = buildTransactionReportWhere({
     organizationId: ctx.organizationId,
-    ...(branchId && { branchId }),
-    status: "COMPLETED" as const,
-    transactedAt: { gte: startDate, lte: endDate },
-  };
+    branchIds,
+    startDate,
+    endDate,
+  });
 
   switch (type) {
     case "daily-summary": {
       const data = await db.transaction.groupBy({
         by: ["type"],
-        where: orgFilter,
+        where: transactionFilter,
         _sum: { amount: true, commission: true, fee: true },
         _count: true,
       });
@@ -35,7 +50,7 @@ export const GET = withAuth(async (req, ctx) => {
     case "provider-performance": {
       const data = await db.transaction.groupBy({
         by: ["providerId"],
-        where: { ...orgFilter, providerId: { not: null } },
+        where: { ...transactionFilter, providerId: { not: null } },
         _sum: { amount: true, commission: true },
         _count: true,
       });
@@ -55,7 +70,7 @@ export const GET = withAuth(async (req, ctx) => {
     case "staff-performance": {
       const data = await db.transaction.groupBy({
         by: ["createdById"],
-        where: orgFilter,
+        where: transactionFilter,
         _sum: { amount: true, commission: true },
         _count: true,
       });
@@ -76,7 +91,7 @@ export const GET = withAuth(async (req, ctx) => {
     case "branch-performance": {
       const data = await db.transaction.groupBy({
         by: ["branchId"],
-        where: { organizationId: ctx.organizationId, status: "COMPLETED", transactedAt: { gte: startDate, lte: endDate } },
+        where: transactionFilter,
         _sum: { amount: true, commission: true, fee: true },
         _count: true,
       });
@@ -97,7 +112,7 @@ export const GET = withAuth(async (req, ctx) => {
     case "commission": {
       const data = await db.transaction.groupBy({
         by: ["providerId", "type"],
-        where: { ...orgFilter, commission: { gt: 0 } },
+        where: { ...transactionFilter, commission: { gt: 0 } },
         _sum: { commission: true },
         _count: true,
       });
@@ -107,12 +122,12 @@ export const GET = withAuth(async (req, ctx) => {
     case "expenses": {
       const data = await db.expense.groupBy({
         by: ["category"],
-        where: {
+        where: buildExpenseReportWhere({
           organizationId: ctx.organizationId,
-          ...(branchId && { branchId }),
-          isDeleted: false,
-          paidAt: { gte: startDate, lte: endDate },
-        },
+          branchIds,
+          startDate,
+          endDate,
+        }),
         _sum: { amount: true },
         _count: true,
       });
@@ -122,9 +137,12 @@ export const GET = withAuth(async (req, ctx) => {
     case "variance": {
       const recs = await db.reconciliation.findMany({
         where: {
-          organizationId: ctx.organizationId,
-          ...(branchId && { branchId }),
-          date: { gte: startDate, lte: endDate },
+          ...buildReconciliationReportWhere({
+            organizationId: ctx.organizationId,
+            branchIds,
+            startDate,
+            endDate,
+          }),
           status: { in: ["APPROVED", "SUBMITTED"] },
         },
         include: {
@@ -138,11 +156,12 @@ export const GET = withAuth(async (req, ctx) => {
 
     case "reconciliation-history": {
       const recs = await db.reconciliation.findMany({
-        where: {
+        where: buildReconciliationReportWhere({
           organizationId: ctx.organizationId,
-          ...(branchId && { branchId }),
-          date: { gte: startDate, lte: endDate },
-        },
+          branchIds,
+          startDate,
+          endDate,
+        }),
         include: {
           branch: { select: { id: true, name: true } },
           submittedBy: { select: { id: true, name: true } },

@@ -35,6 +35,7 @@ const navigation = [
     group: "Operations",
     items: [
       { href: "/transactions", label: "Transactions", icon: ArrowRightLeft },
+      { href: "/sms-inbox", label: "SMS Inbox", icon: Smartphone },
       { href: "/shifts", label: "Shifts", icon: Clock },
       { href: "/reconciliation", label: "Reconciliation", icon: CheckSquare },
       { href: "/expenses", label: "Expenses", icon: Receipt },

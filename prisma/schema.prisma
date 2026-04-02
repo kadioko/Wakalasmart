@@ -123,6 +123,32 @@ enum AlertStatus {
   DISMISSED
 }
 
+enum SmsSource {
+  ANDROID_SYNC
+  SMS_WEBHOOK
+  MANUAL_INBOX
+}
+
+enum SmsProcessingStatus {
+  NEW
+  PARSED
+  REVIEWED
+  RECORDED
+  FAILED
+  IGNORED
+}
+
+enum SmsProvider {
+  MPESA
+  AIRTEL_MONEY
+  MIXX_BY_YAS
+  HALOPESA
+  CRDB_BANK
+  NMB_BANK
+  SELCOM_PESA
+  UNKNOWN
+}
+
 enum ExpenseCategory {
   RENT
   UTILITIES
@@ -175,6 +201,10 @@ enum AuditAction {
   SETTINGS_CHANGED
   SHIFT_OPENED
   SHIFT_CLOSED
+  SMS_INGESTED
+  SMS_REVIEWED
+  SMS_RECORDED
+  SMS_IGNORED
   ORGANIZATION_SUSPENDED
   ORGANIZATION_ACTIVATED
 }
@@ -213,6 +243,7 @@ model Organization {
   auditLogs       AuditLog[]
   invitations     Invitation[]
   settings        OrganizationSettings?
+  inboundSms      InboundSms[]
   cashLedger      CashLedgerEntry[]
   floatLedger     FloatLedgerEntry[]
   dailySummaries  DailySummary[]
@@ -262,6 +293,7 @@ model Branch {
   reconciliations Reconciliation[]
   expenses        Expense[]
   alerts          Alert[]
+  inboundSms      InboundSms[]
   userBranches    UserBranch[]
   cashLedger      CashLedgerEntry[]
   floatLedger     FloatLedgerEntry[]
@@ -305,6 +337,8 @@ model User {
   reconciliationsApproved  Reconciliation[] @relation("ApprovedByUser")
   expenses                 Expense[]
   auditLogs                AuditLog[]
+  inboundSmsSubmitted      InboundSms[]     @relation("InboundSmsSubmittedBy")
+  inboundSmsReviewed       InboundSms[]     @relation("InboundSmsReviewedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -542,6 +576,7 @@ model Transaction {
   approvedBy   User?            @relation("ApprovedByUser", fields: [approvedById], references: [id])
   cashEntries  CashLedgerEntry[]
   floatEntries FloatLedgerEntry[]
+  inboundSms   InboundSms[]
 
   @@index([organizationId])
   @@index([branchId])
@@ -722,6 +757,52 @@ model Expense {
   @@index([organizationId])
   @@index([branchId, paidAt])
   @@map("expenses")
+}
+
+model InboundSms {
+  id                  String              @id @default(cuid())
+  organizationId      String
+  branchId            String?
+  source              SmsSource
+  provider            SmsProvider         @default(UNKNOWN)
+  status              SmsProcessingStatus @default(NEW)
+  sender              String?
+  message             String
+  fingerprint         String              @unique
+  receivedAt          DateTime
+  parsedAt            DateTime?
+  reviewedAt          DateTime?
+  recordedAt          DateTime?
+  failedAt            DateTime?
+  ignoredAt           DateTime?
+  parseConfidence     Decimal?            @db.Decimal(5, 2)
+  parseError          String?
+  parsedType          TransactionType?
+  parsedAmount        Decimal?            @db.Decimal(18, 2)
+  parsedReference     String?
+  parsedExternalRef   String?
+  parsedCustomerPhone String?
+  parsedProviderId    String?
+  parsedTillId        String?
+  parsedData          Json?
+  reviewNotes         String?
+  linkedTransactionId String?
+  submittedById       String?
+  reviewedById        String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch            Branch?      @relation(fields: [branchId], references: [id])
+  transaction       Transaction? @relation(fields: [linkedTransactionId], references: [id])
+  submittedBy       User?        @relation("InboundSmsSubmittedBy", fields: [submittedById], references: [id])
+  reviewedBy        User?        @relation("InboundSmsReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([organizationId, status])
+  @@index([organizationId, branchId, receivedAt])
+  @@index([organizationId, provider, status])
+  @@index([linkedTransactionId])
+  @@map("inbound_sms")
 }
 
 // ============================================================
