@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { db } from "@server/lib/db";
 import { createAuditLog } from "./audit.service";
 import { createTransaction } from "./transaction.service";
+import { parseInboundSmsMessage } from "./sms-parsers";
 import type {
   InboundSmsActionInput,
   InboundSmsCreateInput,
@@ -12,29 +13,7 @@ import {
   SmsProcessingStatus,
   SmsProvider,
   SmsSource,
-  TransactionType,
 } from "@prisma/client";
-
-const providerMatchers: Array<{ provider: SmsProvider; patterns: RegExp[] }> = [
-  { provider: "MPESA", patterns: [/m-?pesa/i, /vodacom/i] },
-  { provider: "AIRTEL_MONEY", patterns: [/airtel\s?money/i, /airtel/i] },
-  { provider: "MIXX_BY_YAS", patterns: [/mixx/i, /yas/i, /tigo\s?pesa/i] },
-  { provider: "HALOPESA", patterns: [/halopesa/i, /halotel/i] },
-  { provider: "CRDB_BANK", patterns: [/crdb/i] },
-  { provider: "NMB_BANK", patterns: [/\bnmb\b/i] },
-  { provider: "SELCOM_PESA", patterns: [/selcom/i] },
-];
-
-const typeMatchers: Array<{ type: TransactionType; patterns: RegExp[] }> = [
-  { type: "DEPOSIT", patterns: [/deposit/i, /cash\s?in/i, /umepokea/i, /received/i] },
-  { type: "WITHDRAWAL", patterns: [/withdraw/i, /cash\s?out/i, /umetoa/i] },
-  { type: "FLOAT_PURCHASE", patterns: [/float\s?purchase/i, /float/i, /top\s?up/i] },
-  { type: "BILL_PAYMENT", patterns: [/bill\s?payment/i, /control\s?number/i] },
-  { type: "MERCHANT_PAYMENT", patterns: [/merchant\s?payment/i, /lipa/i, /pay\s?merchant/i] },
-  { type: "TRANSFER", patterns: [/transfer/i, /send money/i, /umetuma/i] },
-  { type: "BANK_DEPOSIT", patterns: [/bank\s?deposit/i, /deposit to bank/i] },
-  { type: "BANK_WITHDRAWAL", patterns: [/bank\s?withdraw/i, /withdraw from bank/i] },
-];
 
 function computeFingerprint(params: {
   organizationId: string;
@@ -66,82 +45,6 @@ function normalizePhone(value?: string | null) {
   return value;
 }
 
-function detectProvider(message: string, hint?: SmsProvider) {
-  if (hint && hint !== "UNKNOWN") return hint;
-  const match = providerMatchers.find(({ patterns }) =>
-    patterns.some((pattern) => pattern.test(message))
-  );
-  return match?.provider ?? "UNKNOWN";
-}
-
-function detectTransactionType(message: string) {
-  const match = typeMatchers.find(({ patterns }) =>
-    patterns.some((pattern) => pattern.test(message))
-  );
-  return match?.type;
-}
-
-function extractAmount(message: string) {
-  const match = message.match(/(?:TZS|Ksh|KES|TSH|TSh|Amount:?|Kiasi:?)[^\d]{0,6}([\d,]+(?:\.\d{1,2})?)/i)
-    ?? message.match(/([\d,]+(?:\.\d{1,2})?)\s?(?:TZS|TSH|TSh)/i);
-  if (!match) return undefined;
-  return Number(match[1].replace(/,/g, ""));
-}
-
-function extractReference(message: string) {
-  const match = message.match(/(?:ref(?:erence)?|receipt|transaction\s?id|trx\s?id|code)[:#\s-]*([A-Z0-9-]{6,})/i);
-  return match?.[1];
-}
-
-function extractPhone(message: string) {
-  const match = message.match(/(?:\+?255|0)[67]\d{8}/);
-  return normalizePhone(match?.[0]);
-}
-
-function scoreParse(fields: {
-  provider: SmsProvider;
-  type?: TransactionType;
-  amount?: number;
-  reference?: string;
-}) {
-  let score = 0.2;
-  if (fields.provider !== "UNKNOWN") score += 0.2;
-  if (fields.type) score += 0.25;
-  if (typeof fields.amount === "number" && fields.amount > 0) score += 0.25;
-  if (fields.reference) score += 0.1;
-  return Math.min(1, score);
-}
-
-export function parseInboundSmsMessage(message: string, providerHint?: SmsProvider) {
-  const provider = detectProvider(message, providerHint);
-  const type = detectTransactionType(message);
-  const amount = extractAmount(message);
-  const reference = extractReference(message);
-  const customerPhone = extractPhone(message);
-  const parseConfidence = scoreParse({ provider, type, amount, reference });
-
-  return {
-    provider,
-    type,
-    amount,
-    reference,
-    externalRef: reference,
-    customerPhone,
-    parseConfidence,
-    parseError:
-      parseConfidence >= 0.45
-        ? null
-        : "Could not confidently determine provider, type, and amount from the SMS",
-    rawSummary: {
-      provider,
-      type,
-      amount,
-      reference,
-      customerPhone,
-    },
-  };
-}
-
 function toParsedDataJson(parsed: ReturnType<typeof parseInboundSmsMessage>): Prisma.InputJsonValue {
   return parsed.rawSummary as unknown as Prisma.InputJsonValue;
 }
@@ -169,7 +72,7 @@ export async function ingestInboundSms(
     return existing;
   }
 
-  const parsed = parseInboundSmsMessage(input.message, input.providerHint);
+  const parsed = parseInboundSmsMessage(input.message, input.providerHint, input.sender || undefined);
   const status: SmsProcessingStatus = parsed.parseError ? "FAILED" : "PARSED";
 
   const sms = await db.inboundSms.create({
