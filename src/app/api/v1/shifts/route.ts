@@ -150,6 +150,13 @@ export const POST = withAuth(
       resourceType: "shift",
       resourceId: shift.id,
       description: `Shift opened for branch ${input.branchId}`,
+      after: {
+        branchId: input.branchId,
+        shiftId: shift.id,
+        openingBalances: input.openingBalances,
+      },
+      ipAddress: req.headers.get("x-forwarded-for") || undefined,
+      userAgent: req.headers.get("user-agent") || undefined,
     });
 
     return ok(shift, 201);

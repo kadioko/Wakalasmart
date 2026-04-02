@@ -105,9 +105,15 @@ export const PATCH = withAuth(
       resourceType: "shift",
       resourceId: updatedShift.id,
       description: `Shift closed for branch ${shift.branchId}`,
+      before: {
+        status: shift.status,
+        notes: shift.notes,
+      },
       after: {
         status: updatedShift.status,
         closedAt: updatedShift.closedAt,
+        notes: updatedShift.notes,
+        closingBalances: parsed.data.closingBalances,
       },
       ipAddress: req.headers.get("x-forwarded-for") || undefined,
       userAgent: req.headers.get("user-agent") || undefined,
