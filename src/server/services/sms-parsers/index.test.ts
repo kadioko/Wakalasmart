@@ -27,6 +27,13 @@ test("fixture-based provider SMS parsers extract expected core fields", () => {
         `Expected confidence <= ${fixture.expected.maximumConfidence} for ${fixture.provider}/${fixture.scenario}, got ${parsed.parseConfidence}`
       );
     }
+
+    for (const warningFragment of fixture.expected.warningIncludes ?? []) {
+      assert.ok(
+        parsed.warnings.some((warning) => warning.includes(warningFragment)),
+        `Expected warning including \"${warningFragment}\" for ${fixture.provider}/${fixture.scenario}, got ${parsed.warnings.join(" | ")}`
+      );
+    }
   }
 });
 

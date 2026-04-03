@@ -33,7 +33,12 @@ export interface SmsParserFixture {
     | "transfer"
     | "float_purchase"
     | "bill_payment"
-    | "noisy";
+    | "noisy"
+    | "failed"
+    | "reversal"
+    | "provider_warning"
+    | "mixed_language"
+    | "sender_alias";
   provider: SmsProvider;
   sender?: string;
   message: string;
@@ -46,5 +51,6 @@ export interface SmsParserFixture {
     minimumConfidence: number;
     maximumConfidence?: number;
     parseError: string | null;
+    warningIncludes?: string[];
   };
 }

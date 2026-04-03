@@ -42,6 +42,42 @@ export function classifyByKeywords(message: string, mapping: Array<{ type: Trans
   return match?.type;
 }
 
+export function isFailedTransactionMessage(message: string) {
+  return /failed|unsuccessful|haikufanikiwa|imekataliwa|hakikufanikiwa/i.test(message);
+}
+
+export function isReversalMessage(message: string) {
+  return /reversal|reversed|reverse completed|imefutwa|imerejeshwa|kurejeshwa/i.test(message);
+}
+
+export function isProviderWarningMessage(message: string) {
+  return /warning|tahadhari|notice|reminder|maintenance|keep your pin|never share|fraud|security alert|promo|campaign|discounted|offer/i.test(message);
+}
+
+export function getNonActionableWarnings(message: string) {
+  const warnings: string[] = [];
+
+  if (isFailedTransactionMessage(message)) {
+    warnings.push("SMS indicates failed transaction");
+  }
+
+  if (isReversalMessage(message)) {
+    warnings.push("SMS indicates reversal or reversal notice");
+  }
+
+  if (isProviderWarningMessage(message)) {
+    warnings.push("SMS appears to be provider warning or informational notice");
+  }
+
+  return warnings;
+}
+
+export function getActionableType(message: string, type?: TransactionType) {
+  if (!type) return undefined;
+  if (isReversalMessage(message) || isProviderWarningMessage(message)) return undefined;
+  return type;
+}
+
 export function computeConfidence(params: {
   provider: SmsProvider;
   type?: TransactionType;
