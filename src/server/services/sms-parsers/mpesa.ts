@@ -6,6 +6,7 @@ const typeMatchers: Array<{ type: TransactionType; patterns: RegExp[] }> = [
   { type: "DEPOSIT", patterns: [/umepokea/i, /cash\s?in/i, /wakala cash in/i, /received/i] },
   { type: "WITHDRAWAL", patterns: [/cash\s?out/i, /withdraw/i, /umetoa/i] },
   { type: "FLOAT_PURCHASE", patterns: [/float/i, /top\s?up/i] },
+  { type: "BILL_PAYMENT", patterns: [/bill payment/i, /control number/i] },
   { type: "MERCHANT_PAYMENT", patterns: [/lipa/i, /merchant/i] },
   { type: "TRANSFER", patterns: [/transfer/i, /send money/i, /umetuma/i] },
 ];
@@ -19,8 +20,8 @@ export const mpesaParser: SmsParserModule = {
     const type = classifyByKeywords(message, typeMatchers);
     const amount = extractAmount(message);
     const reference = extractReference(message, [
-      /^([A-Z0-9]{10,12})\s/i,
-      /(?:kumbukumbu|receipt|ref)[:#\s-]*([A-Z0-9-]{8,})/i,
+      /\b([A-Z]{1,4}[0-9][A-Z0-9]{5,9})\b/,
+      /(?:kumbukumbu|receipt|\bref\b)[:#\s-]*([A-Z0-9-]{8,})/i,
     ]);
     const customerPhone = extractPhone(message);
 

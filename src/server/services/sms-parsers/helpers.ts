@@ -69,7 +69,7 @@ export function finalizeParsedSms(params: {
   minimumConfidence?: number;
 }): ParsedSmsResult {
   const warnings = params.warnings ?? [];
-  const parseConfidence = computeConfidence({
+  const baseConfidence = computeConfidence({
     provider: params.provider,
     type: params.type,
     amount: params.amount,
@@ -77,6 +77,8 @@ export function finalizeParsedSms(params: {
     customerPhone: params.customerPhone,
   });
   const minimumConfidence = params.minimumConfidence ?? 0.6;
+  const hasCoreFields = Boolean(params.type) && typeof params.amount === "number" && params.amount > 0;
+  const parseConfidence = hasCoreFields ? baseConfidence : Math.min(baseConfidence, 0.5);
 
   return {
     provider: params.provider,
@@ -87,7 +89,7 @@ export function finalizeParsedSms(params: {
     customerPhone: params.customerPhone,
     parseConfidence,
     parseError:
-      parseConfidence >= minimumConfidence
+      hasCoreFields && parseConfidence >= minimumConfidence
         ? null
         : "Could not confidently determine provider, type, and amount from the SMS",
     warnings,

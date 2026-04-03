@@ -3,25 +3,31 @@ import { classifyByKeywords, extractAmount, extractPhone, extractReference, fina
 import type { SmsParserModule } from "./types";
 
 const typeMatchers: Array<{ type: TransactionType; patterns: RegExp[] }> = [
-  { type: "BANK_DEPOSIT", patterns: [/deposit/i, /cash deposit/i] },
-  { type: "BANK_WITHDRAWAL", patterns: [/withdraw/i, /cash withdrawal/i] },
-  { type: "TRANSFER", patterns: [/transfer/i] },
+  { type: "BANK_DEPOSIT", patterns: [/cash deposit/i, /deposit confirmed/i, /fedha zimewekwa/i] },
+  { type: "BANK_WITHDRAWAL", patterns: [/cash withdrawal/i, /withdrawal confirmed/i, /fedha zimetolewa/i] },
+  { type: "TRANSFER", patterns: [/fund transfer/i, /transfer successful/i] },
 ];
 
 export const nmbParser: SmsParserModule = {
   provider: "NMB_BANK",
   matches(message, sender) {
-    return /\bnmb\b/i.test(`${sender ?? ""} ${message}`);
+    return /\bnmb\b|nmb alerts|nmb bank/i.test(`${sender ?? ""} ${message}`);
   },
   parse(message) {
+    const type = classifyByKeywords(message, typeMatchers);
+    const reference = extractReference(message, [
+      /(?:reference|ref no|transaction id|receipt)[:#\s-]*([A-Z0-9-]{8,})/i,
+      /^([A-Z0-9]{8,12})\s/i,
+    ]);
+
     return finalizeParsedSms({
       provider: SmsProvider.NMB_BANK,
-      type: classifyByKeywords(message, typeMatchers),
+      type,
       amount: extractAmount(message),
-      reference: extractReference(message),
+      reference,
       customerPhone: extractPhone(message),
-      warnings: ["NMB parser is scaffolded and should be tightened with real fixtures"],
-      minimumConfidence: 0.6,
+      warnings: type ? [] : ["NMB transaction type required fallback inference"],
+      minimumConfidence: 0.72,
     });
   },
 };

@@ -27,6 +27,13 @@ export interface SmsParserModule {
 }
 
 export interface SmsParserFixture {
+  scenario:
+    | "deposit"
+    | "withdrawal"
+    | "transfer"
+    | "float_purchase"
+    | "bill_payment"
+    | "noisy";
   provider: SmsProvider;
   sender?: string;
   message: string;
@@ -37,6 +44,7 @@ export interface SmsParserFixture {
     reference?: string;
     customerPhone?: string;
     minimumConfidence: number;
+    maximumConfidence?: number;
     parseError: string | null;
   };
 }

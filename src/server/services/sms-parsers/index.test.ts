@@ -18,8 +18,15 @@ test("fixture-based provider SMS parsers extract expected core fields", () => {
     assert.equal(parsed.parseError, fixture.expected.parseError);
     assert.ok(
       parsed.parseConfidence >= fixture.expected.minimumConfidence,
-      `Expected confidence >= ${fixture.expected.minimumConfidence} for ${fixture.provider}, got ${parsed.parseConfidence}`
+      `Expected confidence >= ${fixture.expected.minimumConfidence} for ${fixture.provider}/${fixture.scenario}, got ${parsed.parseConfidence}`
     );
+
+    if (typeof fixture.expected.maximumConfidence === "number") {
+      assert.ok(
+        parsed.parseConfidence <= fixture.expected.maximumConfidence,
+        `Expected confidence <= ${fixture.expected.maximumConfidence} for ${fixture.provider}/${fixture.scenario}, got ${parsed.parseConfidence}`
+      );
+    }
   }
 });
 

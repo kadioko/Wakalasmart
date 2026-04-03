@@ -3,26 +3,32 @@ import { classifyByKeywords, extractAmount, extractPhone, extractReference, fina
 import type { SmsParserModule } from "./types";
 
 const typeMatchers: Array<{ type: TransactionType; patterns: RegExp[] }> = [
-  { type: "DEPOSIT", patterns: [/selcom.*received/i, /deposit/i, /cash\s?in/i] },
-  { type: "WITHDRAWAL", patterns: [/withdraw/i, /cash\s?out/i] },
-  { type: "TRANSFER", patterns: [/transfer/i] },
-  { type: "BILL_PAYMENT", patterns: [/bill payment/i] },
+  { type: "DEPOSIT", patterns: [/umepokea/i, /cash\s?in/i, /deposit confirmed/i] },
+  { type: "WITHDRAWAL", patterns: [/cash\s?out/i, /withdrawal confirmed/i, /umetoa/i] },
+  { type: "TRANSFER", patterns: [/transfer successful/i, /send money/i] },
+  { type: "BILL_PAYMENT", patterns: [/bill payment/i, /control number/i] },
 ];
 
 export const selcomPesaParser: SmsParserModule = {
   provider: "SELCOM_PESA",
   matches(message, sender) {
-    return /selcom/i.test(`${sender ?? ""} ${message}`);
+    return /selcom|selcom\s?pesa/i.test(`${sender ?? ""} ${message}`);
   },
   parse(message) {
+    const type = classifyByKeywords(message, typeMatchers);
+    const reference = extractReference(message, [
+      /^([A-Z0-9]{8,12})\s/i,
+      /(?:receipt|ref|kumbukumbu|transaction id)[:#\s-]*([A-Z0-9-]{8,})/i,
+    ]);
+
     return finalizeParsedSms({
       provider: SmsProvider.SELCOM_PESA,
-      type: classifyByKeywords(message, typeMatchers),
+      type,
       amount: extractAmount(message),
-      reference: extractReference(message),
+      reference,
       customerPhone: extractPhone(message),
-      warnings: ["Selcom Pesa parser is scaffolded and should be tightened with real fixtures"],
-      minimumConfidence: 0.6,
+      warnings: type ? [] : ["Selcom Pesa transaction type required fallback inference"],
+      minimumConfidence: 0.72,
     });
   },
 };

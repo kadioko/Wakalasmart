@@ -7,6 +7,7 @@ const typeMatchers: Array<{ type: TransactionType; patterns: RegExp[] }> = [
   { type: "WITHDRAWAL", patterns: [/withdraw/i, /cash\s?out/i] },
   { type: "FLOAT_PURCHASE", patterns: [/float/i, /top\s?up/i] },
   { type: "TRANSFER", patterns: [/transfer/i, /send money/i] },
+  { type: "BILL_PAYMENT", patterns: [/bill payment/i, /control number/i] },
   { type: "MERCHANT_PAYMENT", patterns: [/merchant/i, /lipa/i] },
 ];
 
