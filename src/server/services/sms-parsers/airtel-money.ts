@@ -1,4 +1,4 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
+import { TransactionType } from "@prisma/client";
 import { classifyByKeywords, extractAmount, extractPhone, extractReference, finalizeParsedSms, getActionableType, getNonActionableWarnings } from "./helpers";
 import type { SmsParserModule } from "./types";
 
@@ -25,7 +25,7 @@ export const airtelMoneyParser: SmsParserModule = {
     const customerPhone = extractPhone(message);
 
     return finalizeParsedSms({
-      provider: SmsProvider.AIRTEL_MONEY,
+      provider: "AIRTEL_MONEY",
       type,
       amount,
       reference,

@@ -1,4 +1,4 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
+import { TransactionType } from "@prisma/client";
 import { classifyByKeywords, extractAmount, extractPhone, extractReference, finalizeParsedSms, getActionableType, getNonActionableWarnings } from "./helpers";
 import type { SmsParserModule } from "./types";
 
@@ -23,7 +23,7 @@ export const halopesaParser: SmsParserModule = {
     ]);
 
     return finalizeParsedSms({
-      provider: SmsProvider.HALOPESA,
+      provider: "HALOPESA",
       type,
       amount: extractAmount(message),
       reference,

@@ -1,4 +1,4 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
+import { TransactionType } from "@prisma/client";
 import { extractAmount, extractPhone, extractReference, finalizeParsedSms } from "./helpers";
 import { airtelMoneyParser } from "./airtel-money";
 import { crdbParser } from "./crdb";
@@ -7,7 +7,7 @@ import { mixxByYasParser } from "./mixx-by-yas";
 import { mpesaParser } from "./mpesa";
 import { nmbParser } from "./nmb";
 import { selcomPesaParser } from "./selcom-pesa";
-import type { ParsedSmsResult, SmsParserModule } from "./types";
+import type { ParsedSmsResult, SmsParserModule, SmsProvider } from "./types";
 export { smsParserFixtures } from "./fixtures";
 
 const parserModules: SmsParserModule[] = [

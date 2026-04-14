@@ -1,4 +1,4 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
+import { TransactionType } from "@prisma/client";
 import { classifyByKeywords, extractAmount, extractPhone, extractReference, finalizeParsedSms, getActionableType, getNonActionableWarnings } from "./helpers";
 import type { SmsParserModule } from "./types";
 
@@ -22,7 +22,7 @@ export const selcomPesaParser: SmsParserModule = {
     ]);
 
     return finalizeParsedSms({
-      provider: SmsProvider.SELCOM_PESA,
+      provider: "SELCOM_PESA",
       type,
       amount: extractAmount(message),
       reference,

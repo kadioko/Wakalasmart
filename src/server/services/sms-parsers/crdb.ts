@@ -1,4 +1,4 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
+import { TransactionType } from "@prisma/client";
 import { classifyByKeywords, extractAmount, extractPhone, extractReference, finalizeParsedSms, getActionableType, getNonActionableWarnings } from "./helpers";
 import type { SmsParserModule } from "./types";
 
@@ -21,7 +21,7 @@ export const crdbParser: SmsParserModule = {
     ]);
 
     return finalizeParsedSms({
-      provider: SmsProvider.CRDB_BANK,
+      provider: "CRDB_BANK",
       type,
       amount: extractAmount(message),
       reference,

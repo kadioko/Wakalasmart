@@ -1,5 +1,5 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
-import type { ParsedSmsResult } from "./types";
+import { TransactionType } from "@prisma/client";
+import type { ParsedSmsResult, SmsProvider } from "./types";
 
 export function normalizePhone(value?: string | null) {
   if (!value) return undefined;

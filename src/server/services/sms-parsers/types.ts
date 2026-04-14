@@ -1,4 +1,14 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
+import { TransactionType } from "@prisma/client";
+
+export type SmsProvider =
+  | "MPESA"
+  | "AIRTEL_MONEY"
+  | "MIXX_BY_YAS"
+  | "HALOPESA"
+  | "CRDB_BANK"
+  | "NMB_BANK"
+  | "SELCOM_PESA"
+  | "UNKNOWN";
 
 export interface ParsedSmsResult {
   provider: SmsProvider;

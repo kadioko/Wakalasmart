@@ -1,4 +1,4 @@
-import { SmsProvider, TransactionType } from "@prisma/client";
+import { TransactionType } from "@prisma/client";
 import { classifyByKeywords, extractAmount, extractPhone, extractReference, finalizeParsedSms, getActionableType, getNonActionableWarnings } from "./helpers";
 import type { SmsParserModule } from "./types";
 
@@ -26,7 +26,7 @@ export const mixxByYasParser: SmsParserModule = {
     const customerPhone = extractPhone(message);
 
     return finalizeParsedSms({
-      provider: SmsProvider.MIXX_BY_YAS,
+      provider: "MIXX_BY_YAS",
       type,
       amount,
       reference,
